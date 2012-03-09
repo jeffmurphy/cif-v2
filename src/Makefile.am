@@ -1,3 +1,3 @@
-bin_PROGRAMS = cif-router
-cif_router_SOURCES = main.c
+bin_PROGRAMS = cif-ui
+cif_ui_SOURCES = main.c
 
