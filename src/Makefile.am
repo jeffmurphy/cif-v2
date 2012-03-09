@@ -1,3 +1,3 @@
 bin_PROGRAMS = cif-router
-cif_SOURCES = main.c
+cif_router_SOURCES = main.c
 
