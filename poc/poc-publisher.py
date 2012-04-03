@@ -110,7 +110,7 @@ controlport = "5656"
 publisherport = "5657"
 cifrouter = "sdev.nickelsoft.com:5555"
 sleeptime = 1.0
-count = 0
+count = -1
 
 for o, a in opts:
     if o == "-c":
@@ -123,6 +123,8 @@ for o, a in opts:
         sleeptime = float(a)
     elif o == "-n":
         count = int(a)
+        if count > 0:
+            count -= 1
     elif o == "-h":
         usage()
         sys.exit(2)
@@ -148,11 +150,13 @@ try:
         print str(count) + " publishing a message " 
         publisher.send(str(count) + ' message ' + str(time.time()))
         time.sleep(sleeptime)
-        if count < 0:
+        if count == 0:
             hasMore = False
         elif count > 0:
             count = count - 1
         
+    unregister(req, cifrouter)
+    
 except KeyboardInterrupt:
     ctrlc(req, cifrouter)
     
