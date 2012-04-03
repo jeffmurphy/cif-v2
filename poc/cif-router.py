@@ -89,35 +89,43 @@ thread.start()
 
 print "Entering event loop"
 
-while True:
-    print "Get incoming message"
-    msg = socket.recv_multipart()
+try:
+    while True:
+        print "Get incoming message"
+        msg = socket.recv_multipart()
     
-    print "Got msg: ", msg
+        print "Got msg: ", msg
 
-    msgfrom = msg[0]
-    msgto = msg[2]
-    msgcontent = msg[4]
+        msgfrom = msg[0]
+        msgto = msg[2]
+        msgcontent = msg[4]
     
-    if msgto == myname :
-        print "msg for me!"
+        if msgto == myname :
+            print "msg for me!"
         
-        if msgcontent == "REGISTER":
-            print "REGISTER " + msgfrom
-            rv = register(msgfrom)
-            socket.send_multipart( [ msgfrom, '', rv ] )
+            if msgcontent == "REGISTER":
+                  print "REGISTER " + msgfrom
+                  rv = register(msgfrom)
+                  socket.send_multipart( [ msgfrom, '', rv ] )
             
-        elif msgcontent == "UNREGISTER":
-            print "UNREGISTER" + msgfrom
-            rv = unregister(msgfrom)
-            socket.send_multipart( [ msgfrom, '', 'rv' ] )
+            elif msgcontent == "UNREGISTER":
+                print "UNREGISTER" + msgfrom
+                rv = unregister(msgfrom)
+                socket.send_multipart( [ msgfrom, '', rv ] )
             
-        elif msgcontent == "LIST-CLIENTS":
-            print "LIST-CLIENTS for " + msgfrom
-            rv = list_clients()
-            socket.send_multipart( [ msgfrom, '', 'OK', '', rv ] )
+            elif msgcontent == "LIST-CLIENTS":
+                 print "LIST-CLIENTS for " + msgfrom
+                 rv = list_clients()
+                 socket.send_multipart( [ msgfrom, '', 'OK', '', rv ] )
 
-
+except KeyboardInterrupt:
+    print "Shut down."
+    if thread.isAlive():
+        try:
+            thread._Thread__stop()
+        except:
+            print(str(thread.getName()) + ' could not be terminated')
+    sys.exit(0)
 
     
     

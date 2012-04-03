@@ -40,7 +40,6 @@ import datetime
 import threading
 import getopt
 import socket
-import signal
 
 
 def ctrlsocket(myname, cifrouter):
@@ -149,9 +148,9 @@ try:
         print str(count) + " publishing a message " 
         publisher.send(str(count) + ' message ' + str(time.time()))
         time.sleep(sleeptime)
-        if count <= 1:
+        if count < 0:
             hasMore = False
-        else:
+        elif count > 0:
             count = count - 1
         
 except KeyboardInterrupt:
