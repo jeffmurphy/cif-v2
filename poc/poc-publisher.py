@@ -2,12 +2,13 @@
 #
 # poc-publisher proof of concept
 #
-# poc-publisher [-c 5656] [-p 5657] [-r cif-router:5555] [-t #] [-c #] [-h]
+# poc-publisher [-c 5656] [-p 5657] [-r cif-router:5555] [-t #] [-c #] [-m name] [-h]
 #     -c  control port (REQ - for inbound messages)
 #     -p  publisher port (PUB)
 #     -r  cif-router hostname:port
 #     -t  secs between publishing messages (decimal like 0.5 is ok)
 #     -n  number of messages to send (and then quit)
+#     -m  my name
 #
 # cif-publisher uses the following sockets:
 #     REP 
@@ -20,6 +21,7 @@
 #     REQ 
 #       for requesting things
 #          REGISTER
+#          IPUBLISH
 #     XPUB
 #       for publishing messages
 #
@@ -111,12 +113,15 @@ publisherport = "5657"
 cifrouter = "sdev.nickelsoft.com:5555"
 sleeptime = 1.0
 count = -1
+myid = "poc-publisher"
 
 for o, a in opts:
     if o == "-c":
         controlport = a
     elif o == "-p":
         publisherport = a
+    elif o == "-m":
+        myid = a
     elif o == "-r":
         cifrouter = a
     elif o == "-t":
@@ -134,7 +139,7 @@ myip = socket.gethostbyname(socket.gethostname()) # has caveats
 print "ZMQ::Context"
 
 context = zmq.Context()
-myname = myip + ":" + publisherport + "|poc-publisher"
+myname = myip + ":" + publisherport + "|" + myid
 
 
 try:
@@ -146,8 +151,9 @@ try:
     time.sleep(1) # wait for router to connect, sort of lame but see this a lot in zmq code
     
     hasMore = True
-    while hasMore:
-        print str(count) + " publishing a message " 
+    while hasMore:      
+        sys.stdout.write ("[forever]" if (count == -1) else str(count))
+        print " publishing a message " 
         publisher.send(str(count) + ' message ' + str(time.time()))
         time.sleep(sleeptime)
         if count == 0:

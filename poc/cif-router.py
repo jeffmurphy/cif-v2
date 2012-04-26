@@ -13,7 +13,7 @@
 #         locally accepted types:
 #            REGISTER, UNREGISTER, LIST-CLIENTS
 #         locally generated replies:
-#            REGISTERED, ALREADY-REGISTERED, UNREGISTERED, WHORU, OK, FAILED
+#            REGISTERED, UNREGISTERED, WHORU, OK, FAILED
 #
 # a typical use case:
 # 
@@ -34,20 +34,30 @@ import threading
 myname = "cif-router"
 
 def register(clientname):
+    # zmq doesnt have a disconnect, so if we xsub.connect() multiple times
+    # to the same client, we'll start recving duplicates of that clients
+    # messages. to avoid this, we track who we've connected to and if we
+    # see the same client more than once, we dont call connect() again.
+    
+    #if clientname in clients :
+    #    print "\talready registered"
+    #    return 'ALREADY-REGISTERED'
+    
     if clientname in clients :
-        print "\talready registered"
-        return 'ALREADY-REGISTERED'
-    clients[clientname] = time.time()
-    t = str(clientname).split('|')
-    print "connect our xsub -> xpub on " + t[0]
-
-    xsub.connect("tcp://" + t[0])
+        print "we've seen this client before. re-using old connection."
+    else :
+        clients[clientname] = time.time()
+        t = str(clientname).split('|')
+        print "connect our xsub -> xpub on " + t[0]
+        xsub.connect("tcp://" + t[0])
+    
     return 'REGISTERED'
 
 def unregister(clientname):
     if clientname in clients :
         print "\tunregistered"
-        del clients[clientname]
+        # see explanation in register()
+        #del clients[clientname]
         return 'UNREGISTERED'
     print "\tclient unknown"
     return 'WHORU'
