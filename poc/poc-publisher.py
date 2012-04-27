@@ -28,9 +28,10 @@
 # a typical use case:
 # 
 # poc-publisher REQ connects to cif-router's ROUTER
-#  sends REGISTER message with dst=cif-router
+#  sends REGISTER message to cif-router
 #  waits for REGISTERED message
-#  waits for connections to poc-pubs XPUB port
+#  sends IPUBLISH message to cif-router to indicate we are a publisher
+#  waits for connections to our XPUB port
 #  publishes messages via XPUB until control-c
 
 import sys
@@ -46,7 +47,7 @@ import socket
 
 def ctrlsocket(myname, cifrouter):
     # Socket to talk to cif-router
-    req = context.socket(zmq.REQ);
+    req = context.socket(zmq.REQ)
     req.setsockopt(zmq.IDENTITY, myname)
     req.connect('tcp://' + cifrouter)
     return req
@@ -54,14 +55,14 @@ def ctrlsocket(myname, cifrouter):
 def publishsocket(publisherport):
     # Socket to publish from
     print "Creating publisher socket on " + publisherport
-    publisher = context.socket(zmq.PUB);
-    publisher.bind('tcp://*:' + publisherport);
+    publisher = context.socket(zmq.PUB)
+    publisher.bind('tcp://*:' + publisherport)
     return publisher
 
 def unregister(req, cifrouter):
     print "Send UNREGISTER to cif-router (" + cifrouter + ")"
     req.send_multipart(["cif-router", "", "UNREGISTER"])
-    reply = req.recv_multipart();
+    reply = req.recv_multipart()
     print "Got reply: " , reply
     if reply[0] == 'UNREGISTERED':
         print "unregistered successfully"
@@ -71,13 +72,25 @@ def unregister(req, cifrouter):
 def register(req, cifrouter):
     print "Send REGISTER to cif-router (" + cifrouter + ")"
     req.send_multipart(["cif-router", "", "REGISTER"])
-    reply = req.recv_multipart();
-    print "Got reply: " , reply
+    reply = req.recv_multipart()
+    print "\tGot reply: " , reply
     if reply[0] == 'REGISTERED':
         print "registered successfully"
-        # cif-router should connect to our PUB socket
     elif reply[0] == 'ALREADY-REGISTERED':
         print "already registered?"
+    
+    # tell the router that we're a publisher so it will subscribe to us
+    
+    print "Send IPUBLISH to cif-router (" + cifrouter + ")"
+    req.send_multipart(["cif-router", "", "IPUBLISH"])
+    reply = req.recv_multipart()
+    print "\tGot reply: ", reply
+    if reply[0] == "OK":
+        print "\tRouter says OK"
+        # cif-router should connect to our PUB socket (zmq won't tell us)
+    elif reply[0] != "OK":
+        print "\tRouter has a problem with us?"
+    
 
 def ctrlc(req, cifrouter):
     print "Shutting down."
@@ -97,12 +110,12 @@ def ctrl(rep, controlport):
     print "Creating control socket on :" + controlport
     # Socket to accept control requests on
     rep = context.socket(zmq.REP);
-    rep.bind('tcp://*:' + controlport);
-
+    rep.bind('tcp://*:' + controlport)
+    
 global req
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'c:p:r:t:n:h')
+    opts, args = getopt.getopt(sys.argv[1:], 'c:p:r:t:m:h')
 except getopt.GetoptError, err:
     print str(err)
     usage()
@@ -153,8 +166,9 @@ try:
     hasMore = True
     while hasMore:      
         sys.stdout.write ("[forever]" if (count == -1) else str(count))
-        print " publishing a message " 
-        publisher.send(str(count) + ' message ' + str(time.time()))
+        msg = str(count) + ' message ' + str(time.time())
+        print " publishing a message: " + msg 
+        publisher.send(msg)
         time.sleep(sleeptime)
         if count == 0:
             hasMore = False

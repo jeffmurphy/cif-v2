@@ -2,6 +2,11 @@
 #
 # cif-router proof of concept
 #
+# cif-router [-p pubport] [-r routerport] [-m myname] [-h] 
+#      -p  default: 5556
+#      -r  default: 5555
+#      -m  default: cif-router
+#
 # cif-router is a zmq device with the following sockets:
 #     XPUB 
 #       for republishing messages 
@@ -30,6 +35,8 @@ import zmq
 import time
 import datetime
 import threading
+import getopt
+import json
 
 myname = "cif-router"
 
@@ -43,15 +50,19 @@ def register(clientname):
     #    print "\talready registered"
     #    return 'ALREADY-REGISTERED'
     
-    if clientname in clients :
+
+    clients[clientname] = time.time()
+    return 'REGISTERED'
+
+def dosubscribe(clientname):
+    if clientname in publishers :
         print "we've seen this client before. re-using old connection."
     else :
-        clients[clientname] = time.time()
+        publishers[clientname] = time.time()
         t = str(clientname).split('|')
-        print "connect our xsub -> xpub on " + t[0]
+        print "dosubscribe: connect our xsub -> xpub on " + t[0]
         xsub.connect("tcp://" + t[0])
-    
-    return 'REGISTERED'
+    return 'OK'
 
 def unregister(clientname):
     if clientname in clients :
@@ -68,25 +79,47 @@ def list_clients():
         l = l + "%{client}s %{time}d\n" % { 'client' : k, 'time' : clients[k] }
     return l
 
-def myrelay():
+def myrelay(pubport):
 #    zmq.device(zmq.FORWARDER, xpub, xsub)
     relaycount = 0
-    print "[myrelay] Create XPUB socket on 5556"
+    print "[myrelay] Create XPUB socket on " + str(pubport)
     xpub = context.socket(zmq.PUB)
-    xpub.bind("tcp://*:5556")
+    xpub.bind("tcp://*:" + str(pubport))
     while True:
         relaycount = relaycount + 1
         print "[myrelay] " + str(relaycount) + " recv()"
         m = xsub.recv()
         print "[myrelay] got msg on our xsub socket: " , m
+        xpub.send(m)
+        
+try:
+    opts, args = getopt.getopt(sys.argv[1:], 'p:r:m:h')
+except getopt.GetoptError, err:
+    print str(err)
+    usage()
+    sys.exit(2)
 
-    
 context = zmq.Context()
 clients = {}
+publishers = {}
+routerport = 5555
+publisherport = 5556
+myid = "cif-router"
 
-print "Create ROUTER socket on 5555"
+for o, a in opts:
+    if o == "-r":
+        routerport = a
+    elif o == "-p":
+        publisherport = a
+    elif o == "-m":
+        myid = a
+    elif o == "-h":
+        usage()
+        sys.exit(2)
+        
+print "Create ROUTER socket on " + str(routerport)
 socket = context.socket(zmq.ROUTER)
-socket.bind("tcp://*:5555")
+socket.bind("tcp://*:" + str(routerport))
 socket.setsockopt(zmq.IDENTITY, myname)
 
 print "Create XSUB socket"
@@ -94,7 +127,7 @@ xsub = context.socket(zmq.SUB)
 xsub.setsockopt(zmq.SUBSCRIBE, '')
 
 print "Connect XSUB<->XPUB"
-thread = threading.Thread(target=myrelay, args=())
+thread = threading.Thread(target=myrelay, args=(publisherport,))
 thread.start()
 
 print "Entering event loop"
@@ -116,8 +149,9 @@ try:
             if msgcontent == "REGISTER":
                   print "REGISTER " + msgfrom
                   rv = register(msgfrom)
-                  socket.send_multipart( [ msgfrom, '', rv ] )
-            
+                  socket.send_multipart( [ msgfrom, '', rv, '', 
+                                          json.dumps({ 'REQ' : routerport, 'PUB' : publisherport }) ] )
+                              
             elif msgcontent == "UNREGISTER":
                 print "UNREGISTER" + msgfrom
                 rv = unregister(msgfrom)
@@ -127,6 +161,11 @@ try:
                  print "LIST-CLIENTS for " + msgfrom
                  rv = list_clients()
                  socket.send_multipart( [ msgfrom, '', 'OK', '', rv ] )
+                 
+            elif msgcontent == "IPUBLISH":
+                 print "IPUBLISH " + msgfrom
+                 rv = dosubscribe(msgfrom)
+                 socket.send_multipart( [msgfrom, '', 'OK', '', rv ] )
 
 except KeyboardInterrupt:
     print "Shut down."

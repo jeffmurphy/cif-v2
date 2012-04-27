@@ -2,7 +2,12 @@
 #
 # poc-subscriber proof of concept
 #
-# cif-publisher uses the following sockets:
+# poc-subscriber [-c 5656] [-r cif-router:5555] [-m name] [-h]
+#     -c  control port (REQ - for inbound messages)
+#     -r  cif-router hostname:port
+#     -m  my name
+#
+# cif-subscriber uses the following sockets:
 #     REP 
 #       for 'control' messages 
 #          SHUTDOWN
@@ -13,16 +18,16 @@
 #     REQ 
 #       for requesting things
 #          REGISTER
-#     XPUB
-#       for publishing messages
+#     XSUB
+#       for subscribing to messages
 #
 # a typical use case:
 # 
-# poc-publisher REQ connects to cif-router's ROUTER
-#  sends REGISTER message with dst=cif-router
+# poc-subscriber REQ connects to cif-router's ROUTER
+#  sends REGISTER message to cif-router
 #  waits for REGISTERED message
-#  waits for connections to poc-pubs XPUB port
-#  publishes messages via XPUB until control-c
+#  connects to cif-router's XPUB port
+#  loops and reads messages until control-c
 
 import sys
 import zmq
@@ -30,42 +35,119 @@ import random
 import time
 import os
 import datetime
+import json
+import getopt
+import socket
 
-context = zmq.Context()
-myname = "127.0.0.1:5657|poc-publisher";
+def ctrlsocket(myname, cifrouter):
+    # Socket to talk to cif-router
+    req = context.socket(zmq.REQ);
+    req.setsockopt(zmq.IDENTITY, myname)
+    req.connect('tcp://' + cifrouter)
+    return req
+
+def subscribersocket(publisher):
+    # Socket to publish from
+    print "Creating subscriber socket and connecting to " + publisher
+    subscriber = context.socket(zmq.SUB)
+    subscriber.connect('tcp://' + publisher)
+    subscriber.setsockopt(zmq.SUBSCRIBE, '')
+    return subscriber
+
+def unregister(req, cifrouter):
+    print "Send UNREGISTER to cif-router (" + cifrouter + ")"
+    req.send_multipart(["cif-router", "", "UNREGISTER"])
+    reply = req.recv_multipart();
+    print "Got reply: " , reply
+    if reply[0] == 'UNREGISTERED':
+        print "unregistered successfully"
+    else:
+        print "not sure? " + reply[0]
+
+def register(req, cifrouter):
+    routerport = 0
+    routerpubport = 0
+    
+    print "Send REGISTER to cif-router (" + cifrouter + ")"
+    req.send_multipart(["cif-router", "", "REGISTER"])
+    reply = req.recv_multipart();
+    print "Got reply: " , reply
+    if reply[0] == 'REGISTERED':
+        print "registered successfully"
+        rv = json.loads(reply[2])
+        routerport = rv['REQ']
+        routerpubport = rv['PUB']
+    elif reply[0] == 'ALREADY-REGISTERED':
+        print "already registered?"
+
+    return (routerport, routerpubport)
+        
+def ctrlc(req, cifrouter):
+    print "Shutting down."
+    unregister(req, cifrouter)
+    sys.exit(0)
+    
+def usage():
+    print "\
+    # poc-subscriber [-c 5656] [-r cif-router:5555] [-m name]\n\
+    #     -c  control port (REQ - for inbound messages)\n\
+    #     -r  cif-router hostname:port\n\
+    #     -m  my name\n"
+    
+def ctrl(rep, controlport):
+    print "Creating control socket on :" + controlport
+    # Socket to accept control requests on
+    rep = context.socket(zmq.REP);
+    rep.bind('tcp://*:' + controlport);
+
+global req
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], 'c:r:m:h')
+except getopt.GetoptError, err:
+    print str(err)
+    usage()
+    sys.exit(2)
+
+controlport = "5656"
+cifrouter = "sdev.nickelsoft.com:5555"
+myid = "poc-subscriber"
+
+for o, a in opts:
+    if o == "-c":
+        controlport = a
+    elif o == "-m":
+        myid = a
+    elif o == "-r":
+        cifrouter = a
+    elif o == "-h":
+        usage()
+        sys.exit(2)
+
+myip = socket.gethostbyname(socket.gethostname()) # has caveats
 
 print "ZMQ::Context"
 
-print "Register with cif-router:5555 (req->rep)"
+context = zmq.Context()
+myname = myip + ":" + controlport + "|" + myid
 
-# Socket to talk to cif-router
-req = context.socket(zmq.REQ);
-req.setsockopt(zmq.IDENTITY, myname)
-req.connect('tcp://127.0.0.1:5555');
 
-print "Creating control socket on :5656"
-# Socket to accept control requests on
-rep = context.socket(zmq.REP);
-rep.bind('tcp://*:5656');
+try:
+    print "Register with " + cifrouter + " (req->rep)"
+    req = ctrlsocket(myname, cifrouter)
+    (routerport, routerpubport) = register(req, cifrouter)
+    routerhname = cifrouter.split(':')
 
-# Socket to publish from
-
-print "Creating publisher socket on 5657"
-publisher = context.socket(zmq.PUB);
-publisher.bind('tcp://*:5657');
-
-print "Send REGISTER to cif-router"
-req.send_multipart(["cif-router", "", "REGISTER"])
-reply = req.recv_multipart();
-print "Got reply: " , reply
-if reply[0] == 'REGISTERED':
-    print "registered successfully"
-    # cif-router should connect to our PUB socket
-elif reply[0] == 'ALREADY-REGISTERED':
-    print "already registered?"
-
-while True:
-    print "publishing a message " 
-    publisher.send('message ' + str(time.time()))
-    time.sleep(1)
+    subscriber = subscribersocket(routerhname[0] + ":" + str(routerpubport))
+    
+    time.sleep(1) # wait for router to connect, sort of lame but see this a lot in zmq code
+    
+    while True:
+        msg = subscriber.recv()
+        print "Got msg: ", msg
+        
+    unregister(req, cifrouter)
+    
+except KeyboardInterrupt:
+    ctrlc(req, cifrouter)
 
