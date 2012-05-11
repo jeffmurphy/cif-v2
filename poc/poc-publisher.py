@@ -44,6 +44,11 @@ import threading
 import getopt
 import socket
 
+#sys.path.append('./gen-py')
+#from cifipc.ttypes import *
+
+sys.path.append('./protopy')
+import cifipc_pb2
 
 def ctrlsocket(myname, cifrouter):
     # Socket to talk to cif-router
@@ -154,7 +159,6 @@ print "ZMQ::Context"
 context = zmq.Context()
 myname = myip + ":" + publisherport + "|" + myid
 
-
 try:
     print "Register with " + cifrouter + " (req->rep)"
     req = ctrlsocket(myname, cifrouter)
@@ -166,9 +170,12 @@ try:
     hasMore = True
     while hasMore:      
         sys.stdout.write ("[forever]" if (count == -1) else str(count))
-        msg = str(count) + ' message ' + str(time.time())
-        print " publishing a message: " + msg 
-        publisher.send(msg)
+        
+        msg = cifipc_pb2.TestMessage()
+        msg.ok = True
+        msg.msg = str(count) + ' message ' + str(time.time())
+        print " publishing a message: ", msg 
+        publisher.send(msg.SerializeToString())
         time.sleep(sleeptime)
         if count == 0:
             hasMore = False

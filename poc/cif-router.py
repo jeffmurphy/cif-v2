@@ -38,6 +38,10 @@ import threading
 import getopt
 import json
 
+sys.path.append('./gen-py')
+
+from cifipc.ttypes import *
+
 myname = "cif-router"
 
 def register(clientname):

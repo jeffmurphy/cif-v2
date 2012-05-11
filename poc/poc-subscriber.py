@@ -39,6 +39,12 @@ import json
 import getopt
 import socket
 
+#sys.path.append('./gen-py')
+#from cifipc.ttypes import *
+
+sys.path.append('./protopy')
+import cifipc_pb2
+
 def ctrlsocket(myname, cifrouter):
     # Socket to talk to cif-router
     req = context.socket(zmq.REQ);
@@ -143,7 +149,8 @@ try:
     time.sleep(1) # wait for router to connect, sort of lame but see this a lot in zmq code
     
     while True:
-        msg = subscriber.recv()
+        msg = cifipc_pb2.TestMessage()
+        msg.ParseFromString(subscriber.recv())
         print "Got msg: ", msg
         
     unregister(req, cifrouter)
