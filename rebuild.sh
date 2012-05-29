@@ -1,4 +1,4 @@
 autoreconf -vf
-automake --add-missing
-./configure
+automake --add-missing -c 
+sh ./configure
 make
