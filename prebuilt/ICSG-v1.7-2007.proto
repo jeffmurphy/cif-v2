@@ -1,0 +1,297 @@
+message UnspecifiedType
+{
+	required string baseObjectType = 1;
+	required bytes object = 2;
+}
+
+message entityObject
+{
+	required string name = 1;
+	required string id = 2;
+}
+
+message extraHashType
+{
+	required string type = 1;
+}
+
+message classificationDetailsType
+{
+	required string definitionVersion = 1;
+	required int64 detectionAddedTimeStamp = 2;
+	required int64 detectionShippedTimeStamp = 3;
+	required string product = 4;
+	required string productVersion = 5;
+}
+
+message locationType
+{
+	enum LocationTypeEnum
+	{
+		LocationTypeEnum_city = 1;
+		LocationTypeEnum_countryCodeFIPS = 2;
+		LocationTypeEnum_countryCodeISO3166_2 = 3;
+		LocationTypeEnum_countryCodeISO3166_3 = 4;
+		LocationTypeEnum_isp = 5;
+		LocationTypeEnum_region = 6;
+	}
+	optional LocationTypeEnum type = 1;
+}
+
+message domainObject
+{
+	required string domain = 1;
+	required string id = 2;
+}
+
+message registryObject
+{
+	required string key = 1;
+	required string valueName = 2;
+	required string id = 3;
+}
+
+message classificationObject
+{
+	required string classificationName = 1;
+	required string companyName = 2;
+	required string category = 3;
+	required classificationDetailsType classificationDetails = 4;
+	enum ClassificationTypeEnum
+	{
+		ClassificationTypeEnum_clean = 1;
+		ClassificationTypeEnum_dirty = 2;
+		ClassificationTypeEnum_neutral = 3;
+		ClassificationTypeEnum_unknown = 4;
+		ClassificationTypeEnum_unwanted = 5;
+	}
+	required ClassificationTypeEnum type = 5;
+	required string id = 6;
+}
+
+message property
+{
+	enum PropertyTypeEnum
+	{
+		PropertyTypeEnum_adminContact = 1;
+		PropertyTypeEnum_browser = 2;
+		PropertyTypeEnum_city = 3;
+		PropertyTypeEnum_comment = 4;
+		PropertyTypeEnum_countryCodeFIPS = 5;
+		PropertyTypeEnum_countryCodeISO3166_2 = 6;
+		PropertyTypeEnum_countryCodeISO3166_3 = 7;
+		PropertyTypeEnum_filename = 8;
+		PropertyTypeEnum_filepath = 9;
+		PropertyTypeEnum_httpMethod = 10;
+		PropertyTypeEnum_isDamaged = 11;
+		PropertyTypeEnum_isKernel = 12;
+		PropertyTypeEnum_isNonReplicating = 13;
+		PropertyTypeEnum_isParasitic = 14;
+		PropertyTypeEnum_isPolymorphic = 15;
+		PropertyTypeEnum_isStealth = 16;
+		PropertyTypeEnum_isVirus = 17;
+		PropertyTypeEnum_isp = 18;
+		PropertyTypeEnum_locationUrl = 19;
+		PropertyTypeEnum_nameServer = 20;
+		PropertyTypeEnum_operatingSystem = 21;
+		PropertyTypeEnum_ownerAddress = 22;
+		PropertyTypeEnum_postData = 23;
+		PropertyTypeEnum_referrer = 24;
+		PropertyTypeEnum_region = 25;
+		PropertyTypeEnum_registrant = 26;
+		PropertyTypeEnum_registrationDate = 27;
+		PropertyTypeEnum_registryValueData = 28;
+		PropertyTypeEnum_technicalContact = 29;
+		PropertyTypeEnum_urlParameterString = 30;
+		PropertyTypeEnum_userAgent = 31;
+	}
+	required PropertyTypeEnum type = 1;
+}
+
+message reference
+{
+}
+
+message IPAddress
+{
+	enum IPTypeEnum
+	{
+		IPTypeEnum_ipv4 = 1;
+		IPTypeEnum_ipv6 = 2;
+	}
+	required IPTypeEnum type = 1;
+}
+
+message ASNObject
+{
+	required int32 as_number = 1;
+	required int32 id = 2;
+}
+
+message referencesType
+{
+	repeated reference ref = 1;
+}
+
+message volumeType
+{
+	enum VolumeUnitsEnum
+	{
+		VolumeUnitsEnum_numberMachinesAffected = 1;
+		VolumeUnitsEnum_numberOfWebsitesHosting = 2;
+		VolumeUnitsEnum_numberOfWebsitesRedirecting = 3;
+		VolumeUnitsEnum_numberSeenInMalwareSamples = 4;
+		VolumeUnitsEnum_numberSeenInSpam = 5;
+		VolumeUnitsEnum_numberUsersAffected = 6;
+	}
+	required VolumeUnitsEnum units = 1;
+}
+
+message uriObject
+{
+	required string uriString = 1;
+	required string protocol = 2;
+	required string hostname = 3;
+	required string domain = 4;
+	required int32 port = 5;
+	required string path = 6;
+	required string ipProtocol = 7;
+	required string id = 8;
+}
+
+message fileObject
+{
+	required string md5 = 1;
+	required string sha1 = 2;
+	required string sha256 = 3;
+	required string sha512 = 4;
+	required int32 size = 5;
+	required string crc32 = 6;
+	repeated string fileType = 7;
+	repeated extraHashType extraHash = 8;
+	required string id = 9;
+}
+
+message objectProperty
+{
+	required referencesType references = 1;
+	required int64 timestamp = 2;
+	repeated property _property = 3;
+	optional UnspecifiedType id = 4;
+}
+
+message targetType
+{
+	repeated reference ref = 1;
+}
+
+message sourceType
+{
+	repeated reference ref = 1;
+}
+
+message relationship
+{
+	required sourceType source = 1;
+	required targetType target = 2;
+	required int64 timestamp = 3;
+	enum RelationshipTypeEnum
+	{
+		RelationshipTypeEnum_causesToInstall = 1;
+		RelationshipTypeEnum_contactedBy = 2;
+		RelationshipTypeEnum_downloadedFrom = 3;
+		RelationshipTypeEnum_downloads = 4;
+		RelationshipTypeEnum_hasAssociatedConfiguration = 5;
+		RelationshipTypeEnum_hosts = 6;
+		RelationshipTypeEnum_installed = 7;
+		RelationshipTypeEnum_isClassifiedAs = 8;
+		RelationshipTypeEnum_isNameServerOf = 9;
+		RelationshipTypeEnum_isParentOf = 10;
+		RelationshipTypeEnum_isServerOfService = 11;
+		RelationshipTypeEnum_operatedByEntity = 12;
+		RelationshipTypeEnum_relatedTo = 13;
+		RelationshipTypeEnum_resolvesTo = 14;
+		RelationshipTypeEnum_runs = 15;
+		RelationshipTypeEnum_usesCNC = 16;
+		RelationshipTypeEnum_verifiedBy = 17;
+	}
+	required RelationshipTypeEnum type = 4;
+	optional UnspecifiedType id = 5;
+}
+
+message IPObject
+{
+	required IPAddress startAddress = 1;
+	required IPAddress endAddress = 2;
+	required string id = 3;
+}
+
+message fieldDataEntry
+{
+	required referencesType references = 1;
+	required int64 startDate = 2;
+	required int64 endDate = 3;
+	required int64 firstSeenDate = 4;
+	enum OriginTypeEnum
+	{
+		OriginTypeEnum_collection = 1;
+		OriginTypeEnum_desktop = 2;
+		OriginTypeEnum_gateway = 3;
+		OriginTypeEnum_honeypot = 4;
+		OriginTypeEnum_internal = 5;
+		OriginTypeEnum_isp = 6;
+		OriginTypeEnum_lan = 7;
+		OriginTypeEnum_partner = 8;
+		OriginTypeEnum_spam = 9;
+		OriginTypeEnum_unknown = 10;
+		OriginTypeEnum_user = 11;
+		OriginTypeEnum_wan = 12;
+	}
+	required OriginTypeEnum origin = 5;
+	required int32 commonality = 6;
+	repeated volumeType volume = 7;
+	required int32 importance = 8;
+	required locationType location = 9;
+}
+
+message relationshipsType
+{
+	repeated relationship _relationship = 1;
+}
+
+message objectPropertiesType
+{
+	repeated objectProperty _objectProperty = 1;
+}
+
+message fieldDataType
+{
+	repeated fieldDataEntry _fieldDataEntry = 1;
+}
+
+message objectsType
+{
+	repeated fileObject file = 1;
+	repeated uriObject uri = 2;
+	repeated domainObject domain = 3;
+	repeated registryObject registry = 4;
+	repeated IPObject ip = 5;
+	repeated ASNObject asn = 6;
+	repeated entityObject entity = 7;
+	repeated classificationObject classification = 8;
+}
+
+message malwareMetaDataType
+{
+	required string company = 1;
+	required string author = 2;
+	required string comment = 3;
+	required int64 timestamp = 4;
+	required objectsType objects = 5;
+	required objectPropertiesType objectProperties = 6;
+	required relationshipsType relationships = 7;
+	required fieldDataType fieldData = 8;
+	required double version = 9;
+	required string id = 10;
+}
+

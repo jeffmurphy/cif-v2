@@ -1,0 +1,9 @@
+The files in this directory are provided:
+
+a) in case you don't have xsd2idl installed
+
+and/or
+
+b) because they've been 'fixed up' in someway:
+	- fixed circular dependencies in RFC4765-IDMEF-2007.thrift
+

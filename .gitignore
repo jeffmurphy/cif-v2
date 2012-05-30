@@ -1,3 +1,13 @@
 .project
-.config.log
+config.log
+config.status
 autom4te.cache
+build
+Makefile
+src/Makefile
+Makefile.in
+aclocal.m4
+config.log
+config.status
+configure
+Makefile.in
