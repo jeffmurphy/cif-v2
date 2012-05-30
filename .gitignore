@@ -11,3 +11,13 @@ config.log
 config.status
 configure
 Makefile.in
+build
+src/ICSG-v1.7-2007.proto
+src/ICSG-v1.7-2007.thrift
+src/RFC4765-IDMEF-2007.proto
+src/RFC4765-IDMEF-2007.thrift
+src/RFC5070-IODEF-v1.proto
+src/RFC5070-IODEF-v1.thrift
+configure
+aclocal.m4
+Makefile.in

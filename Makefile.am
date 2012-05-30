@@ -1,48 +1,64 @@
 EXTRA_DIST = lib sbin
 
 ME=cif-protocol
-BUILD=$(shell git describe --tags)
+BUILD=@BUILD@
+TARGETS=@TARGETS@
 SNAPSHOT=$(ME)-$(BUILD)
-PROTOFILES=src/msg.proto src/feed.proto
-THRIFTFILES=src/msg.thrift src/feed.thrift
+PROTOFILES=build/*.proto
+THRIFTFILES=build/*.thrift
 
-all: default
+SUBDIRS=src
 
-default:
-	@echo "Please read the README before beginning your installation."
+all: prepare $(TARGETS)
+
+prepare:	
+	[ -d build ] || mkdir build
+	cp src/*.thrift src/*.proto build/
+
+prebuilts:
+	cp prebuilt/*.thrift prebuilt/*.proto build/
+
 
 install:
 	@echo "Please read the README before beginning your installation."
 
-perl: pbperl 
-pbperl:
+
+
+pb_perl:
 	$(PERL) sbin/generate_perl_bindings.pl
 	-( cd perl/ && $(PERL) Makefile.PL && make test)
 
-cpp: protobuf_cpp
-pbcpp:
+thrift_perl:
+
+
+
+
+pb_cpp:
 	[ -d pb-cpp ] || mkdir pb-cpp
 	$(PROTOC) --cpp_out=pb-cpp $(PROTOFILES)
 
-python: pbpython
-pbpython:
+thrift_cpp:
+
+
+pb_C:
+	@echo "Protocol Buffers for C not available"
+
+thrift_C:
+
+
+pb_python:
 	[ -d pb-python ] || mkdir pb-python
 	$(PROTOC) --python_out=pb-python $(PROTOFILES) 
 
-tpython:
-	@echo "not implemented yet..."
-
-tcpp:
-	@echo "not implemented yet..."
-
-tperl:
+thrift_python:
 	@echo "not implemented yet..."
 
 clean:
 	rm Makefile
 	rm config.log
 	rm config.status
-
+	rm -fr build
+	
 realclean: clean
 	rm Makefile.in
 	rm configure
