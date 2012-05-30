@@ -406,6 +406,14 @@ struct Source
 	7 : optional string _interface,
 }
 
+struct Linkage
+{
+	1 : required string name,
+	2 : required string path,
+	3 : required string _File,  // changed from "required File _File" to avoid recursion which Thrift doesn't support
+	4 : required linkage_category category,
+}
+
 struct File
 {
 	1 : required string name,
@@ -425,12 +433,16 @@ struct File
 	15 : required file_category category,
 }
 
-struct Linkage
+struct Target //moved above Alert
 {
-	1 : required string name,
-	2 : required string path,
-	3 : required File _File,
-	4 : required linkage_category category,
+	1 : required Node _Node,
+	2 : required User _User,
+	3 : required Process _Process,
+	4 : required Service _Service,
+	5 : required list<File> _File,
+	6 : optional yes_no_type decoy,
+	7 : optional string ident,
+	8 : optional string _interface,
 }
 
 struct Alert
@@ -457,15 +469,5 @@ struct IDMEF_Message
 	3 : optional double version,
 }
 
-struct Target
-{
-	1 : required Node _Node,
-	2 : required User _User,
-	3 : required Process _Process,
-	4 : required Service _Service,
-	5 : required list<File> _File,
-	6 : optional yes_no_type decoy,
-	7 : optional string ident,
-	8 : optional string _interface,
-}
+
 

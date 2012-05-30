@@ -75,11 +75,17 @@ for i in src/*.xsd ; do
 	XSDFILES="$XSDFILES $i"
 done
 
-if test "$with_prebuilt_xsd2idl$XSD2IDL" = 'nono' ; then
-    AC_MSG_ERROR([you said with_prebuilt_xsd2idl=no but I cant find xsd2idl])
+if test "$with_prebuilt_xsd2idl" = "yes" ; then
+	echo "Using prebuilts"
 	TARGET_XSD2IDL="prebuilts"
 else
-	TARGET_XSD2IDL="xsd2idl"
+	if test "$XSD2IDL" = 'no' ; then
+	    AC_MSG_ERROR([you said --with-prebuilt-xsd2idl=no but I cant find xsd2idl])
+		TARGET_XSD2IDL="prebuilts"
+	else
+		echo "Ignoring prebuilts and rebuilding from XSDs"
+		TARGET_XSD2IDL=" "
+	fi
 fi
 
 for lang in $LANGS ; do 
@@ -88,8 +94,6 @@ for lang in $LANGS ; do
 		TARGETS="$TARGETS ${idl}_${lang}"
 	done
 done
-
-TARGETS="$TARGET_XSD2IDL $TARGETS"
 
 AC_CONFIG_FILES([
                  Makefile
@@ -119,6 +123,7 @@ fi
 
 # Checks for library functions.
 
+AC_SUBST(TARGET_XSD2IDL)
 AC_SUBST(XSDFILES)
 AC_SUBST(XSD2IDL)
 AC_SUBST(BUILD)
