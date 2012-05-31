@@ -127,6 +127,8 @@ fi
 
 # Checks for library functions.
 
+echo "p $prefix"
+
 AC_SUBST(TARGET_XSD2IDL)
 AC_SUBST(XSDFILES)
 AC_SUBST(XSD2IDL)

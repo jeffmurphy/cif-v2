@@ -1,0 +1,29 @@
+Building results in:
+
+1. IDL files (some are provided, others are created at build time)
+
+   src/*.thrift
+   src/*.proto
+
+2. Language modules (depending upon which languages are found on your system)
+
+   src/pb-python
+   src/pb-cpp
+   src/pb-java
+   src/pb-perl 
+   src/thrift-python
+   src/thrift-cpp
+   src/thrift-java
+   src/thrift-perl
+   src/thrift-c
+
+   
+'make install' will result in the IDL files, and language directories being
+copied to $PREFIX/lib/cif-protocol/
+
+Example code is in src/$IDL-$LANG/
+
+For example, to see how to use the messages with protocol buffers in python:
+
+src/pb-python/test.py
+

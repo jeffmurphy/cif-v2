@@ -1,4 +1,4 @@
-
+PREFIX=@prefix@
 XSDFILES=@XSDFILES@
 XSDPROTO=$(XSDFILES:.xsd=.proto)
 XSDTHRIFT=$(XSDFILES:.xsd=.thrift)
@@ -39,7 +39,8 @@ all: @TARGET_XSD2IDL@ @TARGETS@
 
 
 install:
-	@echo "Please read the README before beginning your installation."
+	[ -d $(PREFIX)/lib/cif-protocol ] || mkdir $(PREFIX)/lib/cif-protocol
+	cp -r *.thrift *.proto pb-* thrift-* $(PREFIX)/lib/cif-protocol/
 
 
 
@@ -76,6 +77,7 @@ thrift_cpp:
 
 pb_C:
 	@echo "Protocol Buffers for C not available"
+	echo $(prefix)
 
 thrift_C:
 	@echo "Generating Thrift C Modules"
