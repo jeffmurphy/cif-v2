@@ -1,0 +1,133 @@
+
+XSDFILES=@XSDFILES@
+XSDPROTO=$(XSDFILES:.xsd=.proto)
+XSDTHRIFT=$(XSDFILES:.xsd=.thrift)
+XSD2IDL=@XSD2IDL@
+PROTOFILES=msg.proto feed.proto $(XSDPROTO)
+THRIFTFILES=msg.thrift feed.thrift $(XSDTHRIFT)
+THRIFT=@THRIFT@
+PROTOC=@PROTOC@
+PERL=@PERL@
+PYTHON=@PYTHON@
+CC=@CC@
+CXX=@CXX@
+CFLAGS=@CFLAGS@
+CXXFLAGS=@CXXFLAGS@
+
+%.proto: %.xsd
+	$(XSD2IDL) --protobuf  $< | egrep -v '(my|one)JarPath=' > $@
+	
+%.thrift: %.xsd
+	$(XSD2IDL) --thrift $< | egrep -v '(my|one)JarPath=' > $@
+
+RFC4765-IDMEF-2007.thrift: RFC4765-IDMEF-2007.xsd
+	@echo "$< will contain circular dependencies, which thrift doesn't allow. Using the prebuilt."
+	cp ../prebuilt/RFC4765-IDMEF-2007.thrift .
+#	$(XSD2IDL) --thrift --force-circular $< | egrep -v '(my|one)JarPath=' > $@
+	
+MAEC-v2.proto:
+	@echo "Skipping, xsd2idl doesnt process this correctly. Using the prebuilt."
+	cp ../prebuilt/MAEC-v2.proto .
+
+MAEC-v2.thrift:
+	@echo "Skipping, xsd2idl doesnt process this correctly. Using the prebuilt."
+	cp ../prebuilt/MAEC-v2.thrift .
+	
+
+all: @TARGET_XSD2IDL@ @TARGETS@
+
+
+
+install:
+	@echo "Please read the README before beginning your installation."
+
+
+
+pb_perl:
+	@echo "Generating Protocol Buffer Perl Modules"
+	-(cd perl && $(PERL) sbin/generate_perl_bindings.pl)
+	-( cd perl/ && $(PERL) Makefile.PL && make test)
+
+thrift_perl:
+	@echo "Generating Thrift Perl Modules"
+	@[ -d thrift-perl ] || mkdir thrift-perl
+	@for f in $(THRIFTFILES); do                          \
+		$(THRIFT) -o thrift-perl -strict --gen perl $$f;  \
+	done;
+
+
+
+pb_cpp:
+	@echo "Generating Protocol Buffer C++ Modules"
+	@[ -d pb-cpp ] || mkdir pb-cpp
+	@for f in $(PROTOFILES); do         \
+		$(PROTOC) --cpp_out=pb-cpp $$f; \
+	done;
+
+thrift_cpp:
+	@echo "Generating Thrift C++ Modules"
+	@[ -d thrift-cpp ] || mkdir thrift-cpp
+	@for f in $(THRIFTFILES); do                        \
+		$(THRIFT) -o thrift-cpp -strict --gen cpp $$f;  \
+	done;
+
+
+
+
+pb_C:
+	@echo "Protocol Buffers for C not available"
+
+thrift_C:
+	@echo "Generating Thrift C Modules"
+	@[ -d thrift-cpp ] || mkdir thrift-cpp
+	@for f in $(THRIFTFILES); do                          \
+		$(THRIFT) -o thrift-cpp -strict --gen c_glib $$f; \
+	done;
+
+
+
+
+pb_python:
+	@echo "Generating Protocol Buffer Python Modules"
+	@[ -d pb-python ] || mkdir pb-python
+	@for f in $(PROTOFILES); do               \
+		$(PROTOC) --python_out=pb-python $$f; \
+	done;
+
+thrift_python:
+	@echo "Generating Thrift Python Modules"
+	@[ -d thrift-python ] || mkdir thrift-python
+	@for f in $(THRIFTFILES); do                          \
+		$(THRIFT) -o thrift-python -strict --gen py $$f;  \
+	done;
+
+
+pb_java:
+	@echo "Generating Protocol Buffer Java Modules"
+	@[ -d pb-java ] || mkdir pb-java
+	@for f in $(PROTOFILES); do               \
+		$(PROTOC) --java_out=pb-java $$f; \
+	done;
+
+thrift_java:
+	@echo "Generating Thrift Java Modules"
+	@[ -d thrift-java ] || mkdir thrift-java
+	@for f in $(THRIFTFILES); do                          \
+		$(THRIFT) -o thrift-java -strict --gen java $$f;  \
+	done;
+	
+	
+	
+
+prebuilts:
+	@echo "using prebuilts"
+	cp ../prebuilt/*.proto ../prebuilt/*.thrift .
+	
+xsd2idl: $(XSDPROTO) $(XSDTHRIFT)
+
+clean:
+	-( cd perl/  && make realclean)
+	rm -f $(XSDPROTO) $(XSDTHRIFT)
+	rm -fr pb-cpp     pb-python     pb-java \
+	       thrift-cpp thrift-python thrift-perl thrift-java
+	
