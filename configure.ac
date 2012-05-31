@@ -2,7 +2,9 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
-AC_INIT(cif-protocol, [Protocol Buffers/Thrift IDL files used across the CIF platform], [ci-framework@googlegroups.com])
+
+AC_INIT([cif-protocol], [1.0])
+AC_CONFIG_SRCDIR([src])
 AM_INIT_AUTOMAKE
 
 
@@ -13,6 +15,8 @@ AC_PATH_PROG([PERL], [perl], [no])
 test "x$PERL" != "xno" && LANGS="$LANGS perl"
 AC_PATH_PROG([PYTHON], [python], [no])
 test "x$PYTHON" != "xno" && LANGS="$LANGS python"
+AC_PATH_PROG([JAVAC], [javac], [no])
+test "x$JAVAC" != "xno" && LANGS="$LANGS java"
 AC_PATH_PROG([XSD2IDL], [xsd2idl], [no])
 AC_CHECK_PROG([GIT], [git], [yes], [no])
 

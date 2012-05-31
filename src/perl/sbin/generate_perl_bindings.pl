@@ -3,7 +3,7 @@
 use strict;
 use Google::ProtocolBuffers;
 
-my $f = '../src/msg.proto';
+my $f = '../msg.proto';
 Google::ProtocolBuffers->parsefile($f,
     {
         generate_code => 'lib/CIF/_Msg.pm',
@@ -12,7 +12,7 @@ Google::ProtocolBuffers->parsefile($f,
     }
 );
 
-$f = '../src/feed.proto';
+$f = '../feed.proto';
 
 Google::ProtocolBuffers->parsefile($f,
     {
