@@ -1,0 +1,8 @@
+
+To use:
+
+
+sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
+import cifipc_pb2
+
+
