@@ -77,7 +77,6 @@ thrift_cpp:
 
 pb_C:
 	@echo "Protocol Buffers for C not available"
-	echo $(prefix)
 
 thrift_C:
 	@echo "Generating Thrift C Modules"
