@@ -23,8 +23,8 @@ aclocal.m4
 Makefile.in
 perl/lib/CIF/Msg/Feed.pm
 perl/lib/CIF/_Msg.pm
-src/thrift-cpp
-src/pb-cpp
+src/thrift-cpp/gen-cpp
+src/pb-cpp/gen-cpp
 src/MAEC-v2.proto
 src/MAEC-v2.thrift
 src/Makefile
@@ -34,8 +34,10 @@ perl/META.yml
 perl/MYMETA.json
 perl/MYMETA.yml
 perl/pm_to_blib
-src/pb-cpp
-src/pb-python
+src/pb-cpp/gen-cpp
+src/pb-python/gen-py
 src/thrift-cpp
 src/thrift-perl
 src/thrift-python
+src/pb-java/gen-java
+src/thrift-java/gen-java
