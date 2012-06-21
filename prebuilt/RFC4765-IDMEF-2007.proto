@@ -1,3 +1,5 @@
+package CIF.IDMEF;
+
 message UnspecifiedType
 {
 	required string baseObjectType = 1;
@@ -458,4 +460,5 @@ message Target
 	optional string ident = 7;
 	optional string _interface = 8;
 }
+
 

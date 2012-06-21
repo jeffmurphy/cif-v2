@@ -20,8 +20,6 @@ test "x$JAVAC" != "xno" && LANGS="$LANGS java"
 AC_PATH_PROG([XSD2IDL], [xsd2idl], [no])
 AC_CHECK_PROG([GIT], [git], [yes], [no])
 
-
-
 min_thrift_version=0.8.0
 min_protoc_version=2.4.1
 
@@ -126,8 +124,6 @@ fi
 # Checks for typedefs, structures, and compiler characteristics.
 
 # Checks for library functions.
-
-echo "p $prefix"
 
 AC_SUBST(TARGET_XSD2IDL)
 AC_SUBST(XSDFILES)

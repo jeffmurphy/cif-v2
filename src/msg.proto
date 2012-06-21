@@ -1,7 +1,5 @@
-// TODO -- version, namespace, etc
-// VERSION string should be set by make script (git describe or so)
-
 package CIF.msg;
+
 
 message MessageType {
     enum StatusType {
@@ -9,33 +7,44 @@ message MessageType {
         FAILED          = 2;
         UNAUTHORIZED    = 3;
     }
+    
     enum MsgType {
         QUERY       = 1;
         SUBMISSION  = 2;
         REPLY       = 3;
     }
-    message QueryType {
-        optional string apikey      = 1;
-        optional string guid        = 2;
-        optional int32 limit        = 3;
-        optional int32 confidence   = 4;
-        optional bool nolog         = 5;
-        required string query       = 6;
-        optional string description = 7;
+    
+    message QueryRequest {
+        optional int32 limit        = 1;
+        optional int32 confidence   = 2;
+        optional bool nolog         = 3;
+        required string query       = 4;
+        optional string description = 5;
     }
-    message SubmissionType {
-        optional string apikey      = 1;
-        optional string guid        = 2;
-        repeated bytes data        = 3;
+        
+    message SubmissionRequest {
+        optional string baseObjectType = 1; // eg "RFC5070_IODEF_v1"
+        optional bytes data = 2;
     }
-    // TODO: this is a string for now
-    // git describe will give off string references
-    // based on the tags, may not be optimal
-    required string version     = 1;
-    required MsgType type       = 2;
-    optional StatusType status  = 3;
 
-    // TODO: research [ packed = true ]
-    // src/msg.proto:37:14: [packed = true] can only be specified for repeated primitive fields.
-    repeated bytes data         = 4;
+	// this is the version of this message format. if you alter/add
+	// 'required' fields or enum values, then you must set the major version to 
+	// be the date on which the new format was approved by the Ministry of
+	// Protocols. If you make a change to an optional field, you can 
+	// increment the minor version (although it's not strictly necessary)
+	
+	// see "Extending" at the bottom of https://developers.google.com/protocol-buffers/docs/pythontutorial
+	
+	// the version format is YYYYMMDD.##
+	
+    optional float version      = 1 [default = 20120531.00];
+
+    optional string apikey      = 2;
+    optional string guid        = 3;
+
+    required MsgType type       = 4;
+    optional StatusType status  = 5;
+
+	repeated QueryRequest queryRequest = 6;
+	repeated SubmissionRequest submissionRequest = 7;
 }

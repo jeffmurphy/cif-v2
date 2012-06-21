@@ -25,11 +25,11 @@ RFC4765-IDMEF-2007.thrift: RFC4765-IDMEF-2007.xsd
 	cp ../prebuilt/RFC4765-IDMEF-2007.thrift .
 #	$(XSD2IDL) --thrift --force-circular $< | egrep -v '(my|one)JarPath=' > $@
 	
-MAEC-v2.proto:
+MAEC-v2.proto: 
 	@echo "Skipping, xsd2idl doesnt process this correctly. Using the prebuilt."
 	cp ../prebuilt/MAEC-v2.proto .
 
-MAEC-v2.thrift:
+MAEC-v2.thrift: 
 	@echo "Skipping, xsd2idl doesnt process this correctly. Using the prebuilt."
 	cp ../prebuilt/MAEC-v2.thrift .
 	
@@ -44,12 +44,12 @@ install:
 
 
 
-pb_perl:
+pb_perl: $(PROTOFILES)
 	@echo "Generating Protocol Buffer Perl Modules"
 	-(cd pb-perl && $(PERL) sbin/generate_perl_bindings.pl)
 	-( cd pb-perl/ && $(PERL) Makefile.PL && make test)
 
-thrift_perl:
+thrift_perl: $(THRIFTFILES)
 	@echo "Generating Thrift Perl Modules"
 	@[ -d thrift-perl ] || mkdir thrift-perl
 	@for f in $(THRIFTFILES); do                          \
@@ -58,14 +58,14 @@ thrift_perl:
 
 
 
-pb_cpp:
+pb_cpp: $(PROTOFILES)
 	@echo "Generating Protocol Buffer C++ Modules"
 	@[ -d pb-cpp/gen-cpp ] || mkdir pb-cpp/gen-cpp
 	@for f in $(PROTOFILES); do         \
 		$(PROTOC) --cpp_out=pb-cpp/gen-cpp $$f; \
 	done;
 
-thrift_cpp:
+thrift_cpp: $(THRIFTFILES)
 	@echo "Generating Thrift C++ Modules"
 	@[ -d thrift-cpp ] || mkdir thrift-cpp
 	@for f in $(THRIFTFILES); do                        \
@@ -75,10 +75,10 @@ thrift_cpp:
 
 
 
-pb_C:
+pb_C: $(PROTOFILES)
 	@echo "Protocol Buffers for C not available"
 
-thrift_C:
+thrift_C: $(THRIFTFILES)
 	@echo "Generating Thrift C Modules"
 	@[ -d thrift-c ] || mkdir thrift-c
 	@for f in $(THRIFTFILES); do                          \
@@ -88,14 +88,14 @@ thrift_C:
 
 
 
-pb_python:
+pb_python: $(PROTOFILES)
 	@echo "Generating Protocol Buffer Python Modules"
 	@[ -d pb-python/gen-py ] || mkdir pb-python/gen-py
 	@for f in $(PROTOFILES); do               \
 		$(PROTOC) --python_out=pb-python/gen-py $$f; \
 	done;
 
-thrift_python:
+thrift_python: $(THRIFTFILES)
 	@echo "Generating Thrift Python Modules"
 	@[ -d thrift-python ] || mkdir thrift-python
 	@for f in $(THRIFTFILES); do                          \
@@ -103,14 +103,14 @@ thrift_python:
 	done;
 
 
-pb_java:
+pb_java: $(PROTOFILES)
 	@echo "Generating Protocol Buffer Java Modules"
 	@[ -d pb-java/gen-java ] || mkdir pb-java/gen-java
 	@for f in $(PROTOFILES); do               \
 		$(PROTOC) --java_out=pb-java/gen-java $$f; \
 	done;
 
-thrift_java:
+thrift_java: $(THRIFTFILES)
 	@echo "Generating Thrift Java Modules"
 	@[ -d thrift-java ] || mkdir thrift-java
 	@for f in $(THRIFTFILES); do                          \

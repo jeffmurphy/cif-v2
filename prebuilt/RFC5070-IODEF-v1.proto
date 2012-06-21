@@ -1,3 +1,5 @@
+package IODEF;
+
 message UnspecifiedType
 {
 	required string baseObjectType = 1;
@@ -675,4 +677,5 @@ message IODEF_DocumentType
 	optional string version = 3;
 	required string lang = 4;
 }
+
 
