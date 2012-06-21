@@ -57,6 +57,7 @@ msg.queryRequest.extend([another_query])
 # the message will/should ignore them because the type 
 # is not 'QUERY'
 
+# comment out to test deserialization of QUERY messages
 msg.type = msg_pb2.MessageType.SUBMISSION
 
 # construct the opaque inner message
@@ -116,13 +117,17 @@ except Exception as e:
 else:
     print "\nDeserialized message contains:\n", msg2
 
-if msg2.type == msg_pb2.MessageType.QUERY:
-    print "Received a QUERY"
-elif msg2.type == msg_pb2.MessageType.SUBMISSION:
-    print "Received a SUBMISSION"
-    print "\tSubmission contains: " + str(len(msg2.submissionRequest)) + " submission objects"
-    for i in range(len(msg2.submissionRequest)):
-        print "\t\t #" + str(i) + " is type: " + msg2.submissionRequest[i].baseObjectType
-        # now deserialize the .data field into an MAEC, IODEF, etc, object based on the baseObjectType
+    if msg2.type == msg_pb2.MessageType.QUERY:
+        print "Received a QUERY"
+        print "\tMessage contains: " + str(len(msg2.queryRequest)) + " queries"
+        for i in range(len(msg2.queryRequest)):
+            print "\t\t #" + str(i) + " is: " + msg2.queryRequest[i].query
+            
+    elif msg2.type == msg_pb2.MessageType.SUBMISSION:
+        print "Received a SUBMISSION"
+        print "\tSubmission contains: " + str(len(msg2.submissionRequest)) + " submission objects"
+        for i in range(len(msg2.submissionRequest)):
+            print "\t\t #" + str(i) + " is type: " + msg2.submissionRequest[i].baseObjectType
+            # now deserialize the .data field into an MAEC, IODEF, etc, object based on the baseObjectType
 
 print "Done."

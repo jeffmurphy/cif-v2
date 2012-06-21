@@ -1,3 +1,5 @@
+package ICSG;
+
 message UnspecifiedType
 {
 	required string baseObjectType = 1;
@@ -293,5 +295,7 @@ message malwareMetaDataType
 	required fieldDataType fieldData = 8;
 	required double version = 9;
 	required string id = 10;
+}
+
 }
 
