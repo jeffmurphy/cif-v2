@@ -37,7 +37,7 @@ message MessageType {
 	
 	// the version format is YYYYMMDD.##
 	
-    optional float version      = 1 [default = 20120531.00];
+    optional float version      = 1 [default = 20120622.00];
 
     optional string apikey      = 2;
     optional string guid        = 3;

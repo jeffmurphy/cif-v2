@@ -297,5 +297,4 @@ message malwareMetaDataType
 	required string id = 10;
 }
 
-}
 
