@@ -14,12 +14,17 @@ message MessageType {
         REPLY       = 3;
     }
     
+    message QueryStruct {
+        required string query   = 1;
+        optional bool nolog     = 2;
+    }
+    
     message QueryRequest {
         optional int32 limit        = 1;
         optional int32 confidence   = 2;
-        optional bool nolog         = 3;
-        required string query       = 4;
-        optional string description = 5;
+        repeated QueryStruct query  = 3;
+        optional string description = 4;
+        optional bool feed          = 5 [ default = false ];
     }
         
     message SubmissionRequest {
@@ -27,6 +32,11 @@ message MessageType {
         optional bytes data = 2;
     }
 
+	message Reply {
+		optional string baseObjectType = 1; // eg "RFC5070_IODEF_v1", "CIF.msg.FeedType"
+		optional bytes data            = 2;
+	}
+	
 	// this is the version of this message format. if you alter/add
 	// 'required' fields or enum values, then you must set the major version to 
 	// be the date on which the new format was approved by the Ministry of
@@ -36,8 +46,10 @@ message MessageType {
 	// see "Extending" at the bottom of https://developers.google.com/protocol-buffers/docs/pythontutorial
 	
 	// the version format is YYYYMMDD.##
+	// note, temporarily droppeding the .## portion from this file so the perl module will build
+	// see https://github.com/collectiveintel/google-protocolbuffers-perl/issues/1
 	
-    optional float version      = 1 [default = 20120622.00];
+    optional float version      = 1 [default = 20120622];
 
     optional string apikey      = 2;
     optional string guid        = 3;
@@ -45,6 +57,7 @@ message MessageType {
     required MsgType type       = 4;
     optional StatusType status  = 5;
 
-	repeated QueryRequest queryRequest = 6;
-	repeated SubmissionRequest submissionRequest = 7;
+    repeated QueryRequest queryRequest           = 6;
+    repeated SubmissionRequest submissionRequest = 7;
+    repeated Reply reply                         = 8;
 }

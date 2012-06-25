@@ -20,7 +20,7 @@ version is allowed to mismatch.
 
 def versionCheck(rcvdMsg):
     m = msg_pb2.MessageType()
-    m.version = m.version
+#m.version = m.version
     if type(rcvdMsg) != type(m):
         raise Exception("Object type mismatch: Recvd=" + str(type(rcvdMsg)) + " != Expected=" + str(type(m)))
     else:
@@ -42,12 +42,20 @@ print "Object's IDL version: " , msg.version
 msg.type = msg_pb2.MessageType.QUERY
 
 query = msg.queryRequest.add() 
-query.query = 'foobar.com'
 query.limit = 100
 
+subquery = msg.QueryStruct()
+subquery.query = 'foobar.com'
+query.query.extend([subquery])
+
+subquery.query = '1.2.3.0/24'
+query.query.extend([subquery])
+
 another_query = msg_pb2.MessageType.QueryRequest()
-another_query.query = 'bingbaz.com'
 another_query.limit = 10
+
+subquery.query = '2001:468:902:400:20c:29ff:fe53:beef/64'
+another_query.query.extend([subquery])
 
 msg.queryRequest.extend([another_query])
 
