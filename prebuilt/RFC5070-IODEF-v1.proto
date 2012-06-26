@@ -1,9 +1,270 @@
-package IODEF;
+// RFC5070 -- http://tools.ietf.org/html/rfc5070
+// this doc organized to follow the RFC text
+// https://github.com/collectiveintel/IODEF/blob/master/iodef.proto
 
-message UnspecifiedType
+// global enums
+enum restriction_type
 {
-	required string baseObjectType = 1;
-	required bytes object = 2;
+    restriction_type_default = 1;
+    restriction_type_need_to_know = 2;
+    restriction_type_private = 3;
+    restriction_type_public = 4;
+}
+
+enum severity_type
+{
+    severity_type_high = 1;
+    severity_type_low = 2;
+    severity_type_medium = 3;
+}
+
+enum action_type
+{
+    action_type_block_host = 1;
+    action_type_block_network = 2;
+    action_type_block_port = 3;
+    action_type_contact_sender = 4;
+    action_type_contact_source_site = 5;
+    action_type_contact_target_site = 6;
+    action_type_ext_value = 7;
+    action_type_investigate = 8;
+    action_type_nothing = 9;
+    action_type_other = 10;
+    action_type_rate_limit_host = 11;
+    action_type_rate_limit_network = 12;
+    action_type_rate_limit_port = 13;
+    action_type_remediate_other = 14;
+    action_type_status_new_info = 15;
+    action_type_status_triage = 16;
+}
+
+enum duration_type
+{
+    duration_type_day = 1;
+    duration_type_ext_value = 2;
+    duration_type_hour = 3;
+    duration_type_minute = 4;
+    duration_type_month = 5;
+    duration_type_quarter = 6;
+    duration_type_second = 7;
+    duration_type_year = 8;
+}
+
+// global msgs
+// simple types
+message MLStringType
+{
+    optional string lang = 1;
+    required string content = 2;
+}
+
+message UrlType
+{
+    required bytes content = 1;
+}
+
+// complex types
+message IODEF_DocumentType
+{
+    repeated IncidentType Incident = 1;
+    // use this to hold the pbprotocol version
+    optional string formatid = 2;
+    required string version = 3 [ default = '1.00' ];
+    
+    // http://tools.ietf.org/html/rfc4646
+    required string lang = 4;
+}
+
+message IncidentType
+{
+    required IncidentIDType IncidentID = 1;
+    optional AlternativeIDType AlternativeID = 2;
+    optional RelatedActivityType RelatedActivity = 3;
+    optional string DetectTime = 4;
+    optional string StartTime = 5;
+    optional string EndTime = 6;
+    required string ReportTime = 7;
+    repeated MLStringType Description = 8;
+    // required
+    repeated AssessmentType Assessment = 9;
+    repeated MethodType Method = 10;
+    // required
+    repeated ContactType Contact = 11;
+    repeated EventDataType EventData = 12;
+    optional HistoryType History = 13;
+    repeated ExtensionType AdditionalData = 14;
+    enum Incident_purpose
+    {
+        Incident_purpose_ext_value = 1;
+        Incident_purpose_mitigation = 2;
+        Incident_purpose_other = 3;
+        Incident_purpose_reporting = 4;
+        Incident_purpose_traceback = 5;
+    }
+    required Incident_purpose purpose = 15;
+    optional string ext_purpose = 16;
+    optional string lang = 17;
+    optional restriction_type restriction = 18 [default = restriction_type_private];
+}
+
+message IncidentIDType
+{
+    required string name = 1;
+    optional string instance = 2;
+    optional restriction_type restriction = 3;
+    required string content = 4;
+}
+
+message AlternativeIDType
+{
+    // required
+    repeated IncidentIDType IncidentID = 1;
+    optional restriction_type restriction = 2;
+}
+
+message RelatedActivityType
+{
+    // one of the two is required
+    repeated IncidentIDType IncidentID = 1;
+    repeated UrlType URL = 2;
+    optional restriction_type restriction = 3;
+}
+
+message ExtensionType
+{
+    optional string ext_dtype = 1;
+    optional string formatid = 2;
+    optional string meaning = 3;
+    enum dtype_type
+    {
+        dtype_type_boolean = 1;
+        // byte should be used to describe pb extensions
+        dtype_type_byte = 2;
+        dtype_type_character = 3;
+        dtype_type_csv = 4;
+        dtype_type_date_time = 5;
+        dtype_type_ext_value = 6;
+        dtype_type_file = 7;
+        dtype_type_frame = 8;
+        dtype_type_integer = 9;
+        dtype_type_ipv4_packet = 10;
+        dtype_type_ipv6_packet = 11;
+        dtype_type_ntpstamp = 12;
+        dtype_type_packet = 13;
+        dtype_type_path = 14;
+        dtype_type_portlist = 15;
+        dtype_type_real = 16;
+        dtype_type_string = 17;
+        dtype_type_url = 18;
+        dtype_type_winreg = 19;
+        dtype_type_xml = 20;
+    }
+    required dtype_type dtype = 4;
+    optional restriction_type restriction = 8;
+    optional string content = 9;
+    
+    // pb specific to enable extensions
+    // see https://developers.google.com/protocol-buffers/docs/proto#extensions
+    // avoid 19000 though 19999, they are reserved in pb land
+    extensions 100 to max;
+}
+
+message ContactType
+{
+    optional MLStringType ContactName = 1;
+    repeated MLStringType Description = 2;
+    repeated RegistryHandleType RegistryHandle = 3;
+    optional PostalAddressType PostalAddress = 4;
+    repeated ContactMeansType Email = 5;
+    repeated ContactMeansType Telephone = 6;
+    optional ContactMeansType Fax = 7;
+    optional string Timezone = 8;
+    repeated ContactType Contact = 9;
+    repeated ExtensionType AdditionalData = 10;
+    enum Contact_type
+    {
+        Contact_type_ext_value = 1;
+        Contact_type_organization = 2;
+        Contact_type_person = 3;
+    }
+    required Contact_type type = 11;
+    enum Contact_role
+    {
+        Contact_role_admin = 1;
+        Contact_role_cc = 2;
+        Contact_role_creator = 3;
+        Contact_role_ext_value = 4;
+        Contact_role_irt = 5;
+        Contact_role_tech = 6;
+    }
+    required Contact_role role = 12;
+    optional restriction_type restriction = 13;
+    optional string ext_type = 14;
+    optional string ext_role = 15;
+}
+
+message RegistryHandleType
+{
+    enum RegistryHandle_registry
+    {
+        RegistryHandle_registry_afrinic = 1;
+        RegistryHandle_registry_apnic = 2;
+        RegistryHandle_registry_arin = 3;
+        RegistryHandle_registry_ext_value = 4;
+        RegistryHandle_registry_internic = 5;
+        RegistryHandle_registry_lacnic = 6;
+        RegistryHandle_registry_local = 7;
+        RegistryHandle_registry_ripe = 8;
+    }
+    optional RegistryHandle_registry registry = 1;
+    optional string ext_registry = 2;
+    required string content = 3;
+}
+
+message PostalAddressType
+{
+    optional string meaning = 1;
+    optional string lang = 2;
+    required string content = 3;
+}
+
+message ContactMeansType
+{
+    required string content = 1;
+    optional string meaning = 2;
+}
+
+message MethodType
+{
+    repeated ReferenceType Reference = 1;
+    repeated MLStringType Description = 2;
+    repeated ExtensionType AdditionalData = 3;
+    optional restriction_type restriction = 4;
+}
+
+message ReferenceType
+{
+    required MLStringType ReferenceName = 1;
+    repeated UrlType URL = 2;
+    repeated MLStringType Description = 3;
+}
+
+message AssessmentType
+{
+    // one of the three impact's is required
+    repeated ImpactType Impact = 1;
+    repeated TimeImpactType TimeImpact = 2;
+    repeated MonetaryImpactType MonetaryImpact = 3;
+    repeated CounterType Counter = 4;
+    optional ConfidenceType Confidence = 5;
+    repeated ExtensionType AdditionalData = 6;
+    enum Assessment_occurrence
+    {
+        Assessment_occurrence_actual = 1;
+        Assessment_occurrence_potential = 2;
+    }
+    optional Assessment_occurrence occurrence = 7;
+    optional restriction_type restriction = 8;
 }
 
 message ImpactType
@@ -22,46 +283,278 @@ message ImpactType
 		Impact_type_social_engineering = 10;
 		Impact_type_unknown = 11;
 		Impact_type_user = 12;
+		Impact_type_other = 13;
 	}
-	optional Impact_type type = 1;
+	required Impact_type type = 1 [ default = Impact_type_other ];
 	enum Impact_completion
 	{
 		Impact_completion_failed = 1;
 		Impact_completion_succeeded = 2;
 	}
 	optional Impact_completion completion = 2;
-	optional string lang = 3;
+	required string lang = 3;
 	optional string ext_type = 4;
-	enum severity_type
-	{
-		severity_type_high = 1;
-		severity_type_low = 2;
-		severity_type_medium = 3;
-	}
 	optional severity_type severity = 5;
+    required MLStringType content = 6;
 }
 
-message PostalAddressType
+message TimeImpactType
 {
-	optional string meaning = 1;
-	optional string lang = 2;
+    optional severity_type severity = 1;
+    enum TimeImpact_metric
+    {
+        TimeImpact_metric_downtime = 1;
+        TimeImpact_metric_elapsed = 2;
+        TimeImpact_metric_ext_value = 3;
+        TimeImpact_metric_labor = 4;
+    }
+    required TimeImpact_metric metric = 2;
+    optional string ext_metric = 3;
+    required duration_type duration = 4;
+    optional string ext_duration = 5;
+    required float content = 6;
 }
 
-message RegistryHandleType
+message MonetaryImpactType
 {
-	enum RegistryHandle_registry
-	{
-		RegistryHandle_registry_afrinic = 1;
-		RegistryHandle_registry_apnic = 2;
-		RegistryHandle_registry_arin = 3;
-		RegistryHandle_registry_ext_value = 4;
-		RegistryHandle_registry_internic = 5;
-		RegistryHandle_registry_lacnic = 6;
-		RegistryHandle_registry_local = 7;
-		RegistryHandle_registry_ripe = 8;
-	}
-	optional RegistryHandle_registry registry = 1;
-	optional string ext_registry = 2;
+    optional severity_type severity = 1;
+    // ISO 4217:2001, August 2001
+    required string currency = 2;
+    required float content = 3;
+}
+
+message ConfidenceType
+{
+    enum Confidence_rating
+    {
+        Confidence_rating_high = 1;
+        Confidence_rating_low = 2;
+        Confidence_rating_medium = 3;
+        Confidence_rating_numeric = 4;
+    }
+    required Confidence_rating rating = 1;
+    optional float content = 2;
+}
+
+message HistoryType
+{
+    // required
+    repeated HistoryItemType HistoryItem = 1;
+    optional restriction_type restriction = 2;
+}
+
+message HistoryItemType
+{
+    required string DateTime = 1;
+    optional IncidentIDType IncidentID = 2;
+    optional ContactType Contact = 3;
+    repeated MLStringType Description = 4;
+    repeated ExtensionType AdditionalData = 5;
+    optional string ext_action = 6;
+    required action_type action = 7;
+    optional restriction_type restriction = 8;
+}
+
+message EventDataType
+{
+    repeated MLStringType Description = 1;
+    optional string DetectTime = 2;
+    optional string StartTime = 3;
+    optional string EndTime = 4;
+    repeated ContactType Contact = 5;
+    optional AssessmentType Assessment = 6;
+    repeated MethodType Method = 7;
+    repeated FlowType Flow = 8;
+    repeated ExpectationType Expectation = 9;
+    optional RecordType Record = 10;
+    repeated bytes EventData = 11;
+    repeated ExtensionType AdditionalData = 12;
+    optional restriction_type restriction = 13;
+}
+
+message ExpectationType
+{
+    repeated MLStringType Description = 1;
+    optional string StartTime = 2;
+    optional string EndTime = 3;
+    optional ContactType Contact = 4;
+    optional string ext_action = 5;
+    optional action_type action = 6;
+    optional restriction_type restriction = 7;
+    optional severity_type severity = 8;
+}
+
+message FlowType
+{
+    // required
+    repeated SystemType System = 1;
+}
+
+message SystemType
+{
+    required NodeType Node = 1;
+    repeated ServiceType Service = 2;
+    repeated SoftwareType OperatingSystem = 3;
+    repeated CounterType Counter = 4;
+    repeated MLStringType Description = 5;
+    repeated ExtensionType AdditionalData = 6;
+    enum System_spoofed
+    {
+        System_spoofed_no = 1;
+        System_spoofed_unknown = 2;
+        System_spoofed_yes = 3;
+    }
+    optional System_spoofed spoofed = 7;
+    optional string interface = 8;
+    optional restriction_type restriction = 9;
+    optional string ext_category = 10;
+    enum System_category
+    {
+        System_category_ext_value = 1;
+        System_category_infrastructure = 2;
+        System_category_intermediate = 3;
+        System_category_sensor = 4;
+        System_category_source = 5;
+        System_category_target = 6;
+    }
+    required System_category category = 11;
+}
+
+message NodeType
+{
+    repeated MLStringType NodeName = 1;
+    repeated AddressType Address = 2;
+    optional MLStringType Location = 3;
+    optional string DateTime = 4;
+    repeated NodeRoleType NodeRole = 5;
+    repeated CounterType Counter = 6;
+}
+
+message CounterType
+{
+    enum Counter_type
+    {
+        Counter_type_alert = 1;
+        Counter_type_byte = 2;
+        Counter_type_event = 3;
+        Counter_type_ext_value = 4;
+        Counter_type_flow = 5;
+        Counter_type_host = 6;
+        Counter_type_message = 7;
+        Counter_type_organization = 8;
+        Counter_type_packet = 9;
+        Counter_type_session = 10;
+        Counter_type_site = 11;
+    }
+    required Counter_type type = 1;
+    optional string ext_type = 2;
+    optional string meaning = 3;
+    optional duration_type duration = 4;
+    optional string ext_duration = 5;
+    required float content = 6;
+}
+
+// TODO -- add url and fqdn categories
+message AddressType
+{
+    enum Address_category
+    {
+        Address_category_asn = 1;
+        Address_category_atm = 2;
+        Address_category_e_mail = 3;
+        Address_category_ext_value = 4;
+        Address_category_ipv4_addr = 5;
+        Address_category_ipv4_net = 6;
+        Address_category_ipv4_net_mask = 7;
+        Address_category_ipv6_addr = 8;
+        Address_category_ipv6_net = 9;
+        Address_category_ipv6_net_mask = 10;
+        Address_category_mac = 11;
+        Address_category_fqdn = 12;
+        Address_category_url = 13;
+    }
+    required Address_category category = 1;
+    optional string ext_category = 2;
+    optional string vlan_name = 3;
+    optional int32 vlan_num = 4;
+    
+    // TODO -- should this be binary?
+    required string content = 5;
+}
+
+message NodeRoleType
+{
+    required string lang = 1;
+    optional string ext_category = 2;
+    enum NodeRole_category
+    {
+        NodeRole_category_application = 1;
+        NodeRole_category_client = 2;
+        NodeRole_category_credential = 3;
+        NodeRole_category_database = 4;
+        NodeRole_category_directory = 5;
+        NodeRole_category_ext_value = 6;
+        NodeRole_category_file = 7;
+        NodeRole_category_ftp = 8;
+        NodeRole_category_infra = 9;
+        NodeRole_category_log = 10;
+        NodeRole_category_mail = 11;
+        NodeRole_category_messaging = 12;
+        NodeRole_category_name = 13;
+        NodeRole_category_p2p = 14;
+        NodeRole_category_print = 15;
+        NodeRole_category_server_internal = 16;
+        NodeRole_category_server_public = 17;
+        NodeRole_category_streaming = 18;
+        NodeRole_category_voice = 19;
+        NodeRole_category_www = 20;
+    }
+    required NodeRole_category category = 3;
+}
+
+message ServiceType
+{
+    optional int32 Port = 1;
+    optional string Portlist = 2;
+    optional int32 ProtoType = 3;
+    optional int32 ProtoCode = 4;
+    optional int32 ProtoField = 5;
+    optional SoftwareType Application = 6;
+    
+    // The IANA protocol number.
+    required int32 ip_protocol = 7;
+}
+
+// Application class, re-used with OS and application
+message SoftwareType
+{
+    optional UrlType URL = 1;
+    optional string vendor = 2;
+    optional string version = 3;
+    optional string configid = 4;
+    optional string name = 5;
+    optional string patch = 6;
+    optional string family = 7;
+    optional string swid = 8;
+}
+
+message RecordType
+{
+    // required
+    repeated RecordDataType RecordData = 1;
+    optional restriction_type restriction = 2;
+}
+
+message RecordDataType
+{
+    optional string DateTime = 1;
+    repeated MLStringType Description = 2;
+    optional SoftwareType Application = 3;
+    repeated RecordPatternType RecordPattern = 4;
+    // required
+    repeated ExtensionType RecordItem = 5;
+    repeated ExtensionType AdditionalData = 6;
+    optional restriction_type restriction = 7;
 }
 
 message RecordPatternType
@@ -85,597 +578,5 @@ message RecordPatternType
 	optional RecordPattern_offsetunit offsetunit = 4;
 	optional string ext_offsetunit = 5;
 	optional int32 instance = 6;
+	required string content = 7;
 }
-
-message SoftwareType
-{
-	required UnspecifiedType URL = 1;
-	optional string vendor = 2;
-	optional string version = 3;
-	optional string configid = 4;
-	optional string name = 5;
-	optional string patch = 6;
-	optional string family = 7;
-	optional string swid = 8;
-}
-
-message ConfidenceType
-{
-	enum Confidence_rating
-	{
-		Confidence_rating_high = 1;
-		Confidence_rating_low = 2;
-		Confidence_rating_medium = 3;
-		Confidence_rating_numeric = 4;
-		Confidence_rating_unknown = 5;
-	}
-	required Confidence_rating rating = 1;
-}
-
-message TimeImpactType
-{
-	enum severity_type
-	{
-		severity_type_high = 1;
-		severity_type_low = 2;
-		severity_type_medium = 3;
-	}
-	optional severity_type severity = 1;
-	enum TimeImpact_metric
-	{
-		TimeImpact_metric_downtime = 1;
-		TimeImpact_metric_elapsed = 2;
-		TimeImpact_metric_ext_value = 3;
-		TimeImpact_metric_labor = 4;
-	}
-	required TimeImpact_metric metric = 2;
-	optional string ext_metric = 3;
-	enum duration_type
-	{
-		duration_type_day = 1;
-		duration_type_ext_value = 2;
-		duration_type_hour = 3;
-		duration_type_minute = 4;
-		duration_type_month = 5;
-		duration_type_quarter = 6;
-		duration_type_second = 7;
-		duration_type_year = 8;
-	}
-	optional duration_type duration = 4;
-	optional string ext_duration = 5;
-}
-
-message IncidentIDType
-{
-	required string name = 1;
-	optional string instance = 2;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 3;
-}
-
-message NodeRoleType
-{
-	optional string lang = 1;
-	optional string ext_category = 2;
-	enum NodeRole_category
-	{
-		NodeRole_category_application = 1;
-		NodeRole_category_client = 2;
-		NodeRole_category_credential = 3;
-		NodeRole_category_database = 4;
-		NodeRole_category_directory = 5;
-		NodeRole_category_ext_value = 6;
-		NodeRole_category_file = 7;
-		NodeRole_category_ftp = 8;
-		NodeRole_category_infra = 9;
-		NodeRole_category_log = 10;
-		NodeRole_category_mail = 11;
-		NodeRole_category_messaging = 12;
-		NodeRole_category_name = 13;
-		NodeRole_category_p2p = 14;
-		NodeRole_category_print = 15;
-		NodeRole_category_server_internal = 16;
-		NodeRole_category_server_public = 17;
-		NodeRole_category_streaming = 18;
-		NodeRole_category_voice = 19;
-		NodeRole_category_www = 20;
-	}
-	required NodeRole_category category = 3;
-}
-
-message MLStringType
-{
-	optional string lang = 1;
-}
-
-message CounterType
-{
-	enum Counter_type
-	{
-		Counter_type_alert = 1;
-		Counter_type_byte = 2;
-		Counter_type_event = 3;
-		Counter_type_ext_value = 4;
-		Counter_type_flow = 5;
-		Counter_type_host = 6;
-		Counter_type_message = 7;
-		Counter_type_organization = 8;
-		Counter_type_packet = 9;
-		Counter_type_session = 10;
-		Counter_type_site = 11;
-	}
-	required Counter_type type = 1;
-	optional string ext_type = 2;
-	optional string meaning = 3;
-	enum duration_type
-	{
-		duration_type_day = 1;
-		duration_type_ext_value = 2;
-		duration_type_hour = 3;
-		duration_type_minute = 4;
-		duration_type_month = 5;
-		duration_type_quarter = 6;
-		duration_type_second = 7;
-		duration_type_year = 8;
-	}
-	optional duration_type duration = 4;
-	optional string ext_duration = 5;
-}
-
-message ExtensionType
-{
-	optional string ext_dtype = 1;
-	optional string formatid = 2;
-	optional string meaning = 3;
-	enum dtype_type
-	{
-		dtype_type_boolean = 1;
-		dtype_type_byte = 2;
-		dtype_type_character = 3;
-		dtype_type_csv = 4;
-		dtype_type_date_time = 5;
-		dtype_type_ext_value = 6;
-		dtype_type_file = 7;
-		dtype_type_frame = 8;
-		dtype_type_integer = 9;
-		dtype_type_ipv4_packet = 10;
-		dtype_type_ipv6_packet = 11;
-		dtype_type_ntpstamp = 12;
-		dtype_type_packet = 13;
-		dtype_type_path = 14;
-		dtype_type_portlist = 15;
-		dtype_type_real = 16;
-		dtype_type_string = 17;
-		dtype_type_url = 18;
-		dtype_type_winreg = 19;
-		dtype_type_xml = 20;
-	}
-	required dtype_type dtype = 4;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 5;
-}
-
-message MonetaryImpactType
-{
-	enum severity_type
-	{
-		severity_type_high = 1;
-		severity_type_low = 2;
-		severity_type_medium = 3;
-	}
-	optional severity_type severity = 1;
-	optional string currency = 2;
-}
-
-message ContactMeansType
-{
-	optional string meaning = 1;
-}
-
-message AddressType
-{
-	enum Address_category
-	{
-		Address_category_asn = 1;
-		Address_category_atm = 2;
-		Address_category_e_mail = 3;
-		Address_category_ext_value = 4;
-		Address_category_ipv4_addr = 5;
-		Address_category_ipv4_net = 6;
-		Address_category_ipv4_net_mask = 7;
-		Address_category_ipv6_addr = 8;
-		Address_category_ipv6_net = 9;
-		Address_category_ipv6_net_mask = 10;
-		Address_category_mac = 11;
-	}
-	optional Address_category category = 1;
-	optional string ext_category = 2;
-	optional string vlan_name = 3;
-	optional int32 vlan_num = 4;
-}
-
-message AlternativeIDType
-{
-	repeated IncidentIDType IncidentID = 1;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 2;
-}
-
-message AssessmentType
-{
-	required ImpactType Impact = 1;
-	required TimeImpactType TimeImpact = 2;
-	required MonetaryImpactType MonetaryImpact = 3;
-	repeated CounterType Counter = 4;
-	required ConfidenceType Confidence = 5;
-	repeated ExtensionType AdditionalData = 6;
-	enum Assessment_occurrence
-	{
-		Assessment_occurrence_actual = 1;
-		Assessment_occurrence_potential = 2;
-	}
-	optional Assessment_occurrence occurrence = 7;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 8;
-}
-
-message ReferenceType
-{
-	required MLStringType ReferenceName = 1;
-	repeated UnspecifiedType URL = 2;
-	repeated MLStringType Description = 3;
-}
-
-message ServiceType
-{
-	required int32 Port = 1;
-	required string Portlist = 2;
-	required int32 ProtoType = 3;
-	required int32 ProtoCode = 4;
-	required int32 ProtoField = 5;
-	required SoftwareType Application = 6;
-	required int32 ip_protocol = 7;
-}
-
-message MethodType
-{
-	required ReferenceType Reference = 1;
-	required MLStringType Description = 2;
-	repeated ExtensionType AdditionalData = 3;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 4;
-}
-
-message ContactType
-{
-	required MLStringType ContactName = 1;
-	repeated MLStringType Description = 2;
-	repeated RegistryHandleType RegistryHandle = 3;
-	required PostalAddressType PostalAddress = 4;
-	repeated ContactMeansType Email = 5;
-	repeated ContactMeansType Telephone = 6;
-	required ContactMeansType Fax = 7;
-	required string Timezone = 8;
-	repeated bytes Contact = 9;
-	repeated ExtensionType AdditionalData = 10;
-	enum Contact_type
-	{
-		Contact_type_ext_value = 1;
-		Contact_type_organization = 2;
-		Contact_type_person = 3;
-	}
-	required Contact_type type = 11;
-	enum Contact_role
-	{
-		Contact_role_admin = 1;
-		Contact_role_cc = 2;
-		Contact_role_creator = 3;
-		Contact_role_ext_value = 4;
-		Contact_role_irt = 5;
-		Contact_role_tech = 6;
-	}
-	required Contact_role role = 12;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 13;
-	optional string ext_type = 14;
-	optional string ext_role = 15;
-}
-
-message RelatedActivityType
-{
-	repeated IncidentIDType IncidentID = 1;
-	repeated UnspecifiedType URL = 2;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 3;
-}
-
-message ExpectationType
-{
-	repeated MLStringType Description = 1;
-	required int64 StartTime = 2;
-	required int64 EndTime = 3;
-	required ContactType Contact = 4;
-	optional string ext_action = 5;
-	enum action_type
-	{
-		action_type_block_host = 1;
-		action_type_block_network = 2;
-		action_type_block_port = 3;
-		action_type_contact_sender = 4;
-		action_type_contact_source_site = 5;
-		action_type_contact_target_site = 6;
-		action_type_ext_value = 7;
-		action_type_investigate = 8;
-		action_type_nothing = 9;
-		action_type_other = 10;
-		action_type_rate_limit_host = 11;
-		action_type_rate_limit_network = 12;
-		action_type_rate_limit_port = 13;
-		action_type_remediate_other = 14;
-		action_type_status_new_info = 15;
-		action_type_status_triage = 16;
-	}
-	optional action_type action = 6;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 7;
-	enum severity_type
-	{
-		severity_type_high = 1;
-		severity_type_low = 2;
-		severity_type_medium = 3;
-	}
-	optional severity_type severity = 8;
-}
-
-message RecordDataType
-{
-	required int64 DateTime = 1;
-	repeated MLStringType Description = 2;
-	required SoftwareType Application = 3;
-	repeated RecordPatternType RecordPattern = 4;
-	repeated ExtensionType RecordItem = 5;
-	repeated ExtensionType AdditionalData = 6;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 7;
-}
-
-message NodeType
-{
-	required MLStringType NodeName = 1;
-	repeated AddressType Address = 2;
-	required MLStringType Location = 3;
-	required int64 DateTime = 4;
-	repeated NodeRoleType NodeRole = 5;
-	repeated CounterType Counter = 6;
-}
-
-message HistoryItemType
-{
-	required int64 DateTime = 1;
-	required IncidentIDType IncidentID = 2;
-	required ContactType Contact = 3;
-	repeated MLStringType Description = 4;
-	repeated ExtensionType AdditionalData = 5;
-	optional string ext_action = 6;
-	enum action_type
-	{
-		action_type_block_host = 1;
-		action_type_block_network = 2;
-		action_type_block_port = 3;
-		action_type_contact_sender = 4;
-		action_type_contact_source_site = 5;
-		action_type_contact_target_site = 6;
-		action_type_ext_value = 7;
-		action_type_investigate = 8;
-		action_type_nothing = 9;
-		action_type_other = 10;
-		action_type_rate_limit_host = 11;
-		action_type_rate_limit_network = 12;
-		action_type_rate_limit_port = 13;
-		action_type_remediate_other = 14;
-		action_type_status_new_info = 15;
-		action_type_status_triage = 16;
-	}
-	required action_type action = 7;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 8;
-}
-
-message HistoryType
-{
-	repeated HistoryItemType HistoryItem = 1;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 2;
-}
-
-message RecordType
-{
-	repeated RecordDataType RecordData = 1;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 2;
-}
-
-message SystemType
-{
-	required NodeType Node = 1;
-	repeated ServiceType Service = 2;
-	repeated SoftwareType OperatingSystem = 3;
-	repeated CounterType Counter = 4;
-	repeated MLStringType Description = 5;
-	repeated ExtensionType AdditionalData = 6;
-	enum System_spoofed
-	{
-		System_spoofed_no = 1;
-		System_spoofed_unknown = 2;
-		System_spoofed_yes = 3;
-	}
-	optional System_spoofed spoofed = 7;
-	optional string _interface = 8;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 9;
-	optional string ext_category = 10;
-	enum System_category
-	{
-		System_category_ext_value = 1;
-		System_category_infrastructure = 2;
-		System_category_intermediate = 3;
-		System_category_sensor = 4;
-		System_category_source = 5;
-		System_category_target = 6;
-	}
-	optional System_category category = 11;
-}
-
-message FlowType
-{
-	repeated SystemType System = 1;
-}
-
-message EventDataType
-{
-	repeated MLStringType Description = 1;
-	required int64 DetectTime = 2;
-	required int64 StartTime = 3;
-	required int64 EndTime = 4;
-	repeated ContactType Contact = 5;
-	required AssessmentType Assessment = 6;
-	repeated MethodType Method = 7;
-	repeated FlowType Flow = 8;
-	repeated ExpectationType Expectation = 9;
-	required RecordType Record = 10;
-	repeated bytes EventData = 11;
-	repeated ExtensionType AdditionalData = 12;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 13;
-}
-
-message IncidentType
-{
-	required IncidentIDType IncidentID = 1;
-	required AlternativeIDType AlternativeID = 2;
-	required RelatedActivityType RelatedActivity = 3;
-	required int64 DetectTime = 4;
-	required int64 StartTime = 5;
-	required int64 EndTime = 6;
-	required int64 ReportTime = 7;
-	repeated MLStringType Description = 8;
-	repeated AssessmentType Assessment = 9;
-	repeated MethodType Method = 10;
-	repeated ContactType Contact = 11;
-	repeated EventDataType EventData = 12;
-	required HistoryType History = 13;
-	repeated ExtensionType AdditionalData = 14;
-	enum Incident_purpose
-	{
-		Incident_purpose_ext_value = 1;
-		Incident_purpose_mitigation = 2;
-		Incident_purpose_other = 3;
-		Incident_purpose_reporting = 4;
-		Incident_purpose_traceback = 5;
-	}
-	required Incident_purpose purpose = 15;
-	optional string ext_purpose = 16;
-	optional string lang = 17;
-	enum restriction_type
-	{
-		restriction_type_default = 1;
-		restriction_type_need_to_know = 2;
-		restriction_type_private = 3;
-		restriction_type_public = 4;
-	}
-	optional restriction_type restriction = 18;
-}
-
-message IODEF_DocumentType
-{
-	repeated IncidentType Incident = 1;
-	optional string formatid = 2;
-	optional string version = 3;
-	required string lang = 4;
-}
-
-
