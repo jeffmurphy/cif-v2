@@ -10,22 +10,8 @@ import msg_pb2
 import feed_pb2
 import RFC5070_IODEF_v1_pb2
 import MAEC_v2_pb2
+import cifsupport
 
-"""
-Compare the received object's version to the version available
-in our local installation. If the integer portion of the version does 
-not match, throw an exception. The minor (fractional) portion of the
-version is allowed to mismatch.
-"""
-
-def versionCheck(rcvdMsg):
-    m = msg_pb2.MessageType()
-#m.version = m.version
-    if type(rcvdMsg) != type(m):
-        raise Exception("Object type mismatch: Recvd=" + str(type(rcvdMsg)) + " != Expected=" + str(type(m)))
-    else:
-        if int(m.version) != int(rcvdMsg.version):
-            raise Exception("Version mismatch: Recvd=" + str(int(rcvdMsg.version)) + " != OurIDL=" + str(int(m.version)))
 
 print "Constructing a CIF.msg object"
 
@@ -119,7 +105,7 @@ msg2.ParseFromString(serialized)
 
 print "Version checking against our IDL"
 try:
-    versionCheck(msg2)
+    cifsupport.versionCheck(msg2)
 except Exception as e:
     print "Received message was bad: ", e
 else:
