@@ -1,7 +1,29 @@
 Welcome
 -------
 
-These are the core message protocols for cif.
+These are the core message protocols for cif. The central message
+is CIF.msg.MessageType (src/msg.proto) and other message types 
+(CIF.msg.FeedType [feed.proto] as well as the various 'standardized' 
+messages like IODEF, IDMEF, etc) are placed inside of MessageType.
+
+
+This package is a foundational piece of CIF and other CIF packages 
+expect it to be installed first.
+
+The intent of this package is to bring together the various protocol
+message definitions that CIF will support 'out of the box'. 
+
+Additionally, this package will construct language bindings for you
+(if you have 'protoc' and/or 'thrift' installed). 
+
+All of the files (IDL files, language bindings) are installed into
+/usr/local/lib/cif-protocol (default) and other CIF package will 
+look there.
+
+At the moment, protocol buffers (protoc) must be installed to take
+advantage of this package, otherwise the language bindings will not
+be built and other CIF modules will not work. In the future Thrift
+may be added.
 
 Building and installation
 -------------------------
