@@ -29,6 +29,7 @@ src/pb-python/gen-py/MAEC_v2_pb2.py
 src/pb-python/gen-py/msg_pb2.py
 src/pb-python/gen-py/RFC4765_IDMEF_2007_pb2.py
 src/pb-python/gen-py/RFC5070_IODEF_v1_pb2.py
+*.pyc
 src/RFC4765-IDMEF-2007.proto
 src/RFC4765-IDMEF-2007.thrift
 src/RFC5070-IODEF-v1.proto
