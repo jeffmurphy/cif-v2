@@ -41,7 +41,7 @@ all: @TARGET_XSD2IDL@ @TARGETS@
 install:
 	rm -fr $(PREFIX)/lib/cif-protocol
 	[ -d $(PREFIX)/lib/cif-protocol ] || mkdir $(PREFIX)/lib/cif-protocol
-	( cd pb-perl ; make install )
+#	( cd pb-perl ; make install )
 	cp -r *.thrift *.proto pb-* thrift-* $(PREFIX)/lib/cif-protocol/
 
 
