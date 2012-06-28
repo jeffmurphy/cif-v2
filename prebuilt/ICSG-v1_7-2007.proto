@@ -1,4 +1,4 @@
-package ICSG;
+package CIF.ICSG;
 
 message UnspecifiedType
 {
@@ -285,15 +285,15 @@ message objectsType
 
 message malwareMetaDataType
 {
-	required string company = 1;
-	required string author = 2;
-	required string comment = 3;
-	required int64 timestamp = 4;
-	required objectsType objects = 5;
-	required objectPropertiesType objectProperties = 6;
-	required relationshipsType relationships = 7;
-	required fieldDataType fieldData = 8;
-	required double version = 9;
+	optional float version = 1 [default = 20120628];
+	required string company = 2;
+	required string author = 3;
+	required string comment = 4;
+	required int64 timestamp = 5;
+	required objectsType objects = 6;
+	required objectPropertiesType objectProperties = 7;
+	required relationshipsType relationships = 8;
+	required fieldDataType fieldData = 9;
 	required string id = 10;
 }
 

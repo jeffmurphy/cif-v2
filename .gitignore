@@ -8,8 +8,8 @@ Makefile
 Makefile.in
 .project
 .pydevproject
-src/ICSG-v1.7-2007.proto
-src/ICSG-v1.7-2007.thrift
+src/ICSG-v1_7-2007.proto
+src/ICSG-v1_7-2007.thrift
 src/MAEC-v2.proto
 src/MAEC-v2.thrift
 src/Makefile
@@ -39,3 +39,5 @@ src/thrift-cpp/gen-cpp
 src/thrift-java/gen-java
 src/thrift-perl/gen-perl
 src/thrift-python/gen-py
+src/pb-perl/lib/CIF/Msg/Feed.pm
+src/pb-perl/lib/CIF/_Msg.pm

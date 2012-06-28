@@ -66,10 +66,12 @@ message UrlType
 // complex types
 message IODEF_DocumentType
 {
-    repeated IncidentType Incident = 1;
+	// for CIF, the message version SHALL always be = 1
+    required float version = 1 [ default = 1.00 ];
+
+    repeated IncidentType Incident = 2;
     // use this to hold the pbprotocol version
-    optional string formatid = 2;
-    required string version = 3 [ default = '1.00' ];
+    optional string formatid = 3;
     
     // http://tools.ietf.org/html/rfc4646
     required string lang = 4;

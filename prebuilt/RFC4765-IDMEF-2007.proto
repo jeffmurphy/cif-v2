@@ -1,5 +1,6 @@
 package CIF.IDMEF;
 
+
 message UnspecifiedType
 {
 	required string baseObjectType = 1;
@@ -438,9 +439,10 @@ message Alert
 
 message IDMEF_Message
 {
-	required Alert _Alert = 1;
-	required Heartbeat _Heartbeat = 2;
-	optional double version = 3;
+	// version SHALL be a float and always the first field
+	optional float version = 1 [default = 20120628];
+	required Alert _Alert = 2;
+	required Heartbeat _Heartbeat = 3;
 }
 
 message Target
