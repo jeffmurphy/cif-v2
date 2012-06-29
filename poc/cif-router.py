@@ -38,9 +38,12 @@ import threading
 import getopt
 import json
 
-sys.path.append('./gen-py')
+sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
+import msg_pb2
+import feed_pb2
+import RFC5070_IODEF_v1_pb2
+import MAEC_v2_pb2
 
-from cifipc.ttypes import *
 
 myname = "cif-router"
 
@@ -93,8 +96,12 @@ def myrelay(pubport):
         relaycount = relaycount + 1
         print "[myrelay] " + str(relaycount) + " recv()"
         m = xsub.recv()
-        print "[myrelay] got msg on our xsub socket: " , m
+        #print "[myrelay] got msg on our xsub socket: " , m
         xpub.send(m)
+    
+def usage():
+    print "cif-router [-r routerport] [-p pubport] [-m myid] [-h]"
+    print "   routerport = 5555, pubport = 5556, myid = cif-router"
         
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'p:r:m:h')

@@ -1,0 +1,23 @@
+= Behaviors =
+
+== CIF-SMRT <-> CIF-ROUTER ==
+
+CIF-SMRT::REQ connects to CIF-ROUTER::REP port and registers
+ * message type REGISTER
+
+CIF-ROUTER::XSUB connects to CIF-SMRT::XPUB port
+ * subscribes to all events
+
+
+== CIF-DB <-> CIF-ROUTER ==
+
+
+CIF-DB::REQ connects to CIF-ROUTER::REP port and registers
+ * message type REGISTER
+
+CIF-DB::XSUB connects to CIF-ROUTER::XPUB port
+ * subscribes to all events
+
+
+== CIF-ROUTER <-> CIF-ROUTER ==
+

@@ -44,11 +44,13 @@ import threading
 import getopt
 import socket
 
-#sys.path.append('./gen-py')
-#from cifipc.ttypes import *
+sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
+import msg_pb2
+import feed_pb2
+import RFC5070_IODEF_v1_pb2
+import MAEC_v2_pb2
 
-sys.path.append('./protopy')
-import cifipc_pb2
+import cifsupport
 
 def ctrlsocket(myname, cifrouter):
     # Socket to talk to cif-router
@@ -171,9 +173,19 @@ try:
     while hasMore:      
         sys.stdout.write ("[forever]" if (count == -1) else str(count))
         
-        msg = cifipc_pb2.TestMessage()
-        msg.ok = True
-        msg.msg = str(count) + ' message ' + str(time.time())
+        msg = msg_pb2.MessageType()
+        msg.version = msg.version # required
+        msg.apikey = '12345'
+        msg.guid = '123456-abcdef'
+        msg.type = msg_pb2.MessageType.SUBMISSION
+
+        maec = MAEC_v2_pb2.maecPlaceholder()
+        maec.msg = "test message: " + str(count) + " " + str(time.time())
+
+        sr = msg.submissionRequest.add()
+        sr.baseObjectType = 'MAEC_v2'
+        sr.data = maec.SerializeToString()
+
         print " publishing a message: ", msg 
         publisher.send(msg.SerializeToString())
         time.sleep(sleeptime)
