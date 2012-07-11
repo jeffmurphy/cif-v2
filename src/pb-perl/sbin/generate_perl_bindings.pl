@@ -3,11 +3,9 @@
 use strict;
 use Google::ProtocolBuffers;
 
-# it's important that the final portional of 'packagename' (the part after
-# the final ::) is consistent across languages. Therefor, the package names
-# you see here are the ones that are produced by "protoc" for other languages
-# like Java, Python, etc. They are prefixed by "CIF::" but that will be stripped
-# when creating the message. 
+# it's important that the 'packagename' is consistent across languages.
+# Therefor, the package names you see here are the ones that are produced 
+# by "protoc" for other languages like Java, Python, etc. 
 
 my $todo = [
     #[ input filename, output filename,  packagename ] 
@@ -33,4 +31,4 @@ foreach my $t (@$todo) {
 }
 
 exit 0;
-     
+    
