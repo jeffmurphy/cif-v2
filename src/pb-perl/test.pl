@@ -21,7 +21,7 @@ my $maec = CIF::MAEC::MaecPlaceholder->encode({
 
 my $m = CIF::Msg::MessageType->encode({
 	type => CIF::Msg::MessageType::MsgType::SUBMISSION(),
-#	version => 1,   # uncomment to test version checking code
+	version => getOurVersion(),   # _always_ include this when making a message. set to '1' to test version checking code
 	submissionRequest => [ 
 		{
 			baseObjectType => 'MAEC_v2_pb2',
