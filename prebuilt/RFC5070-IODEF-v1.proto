@@ -67,7 +67,7 @@ message UrlType
 message IODEF_DocumentType
 {
 	// for CIF, the message version SHALL always be = 1
-    required float version = 1 [ default = 1.00 ];
+    optional float version = 1 [ default = 1.00 ];
 
     repeated IncidentType Incident = 2;
     // use this to hold the pbprotocol version
