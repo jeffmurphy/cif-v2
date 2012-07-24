@@ -2,11 +2,12 @@
 use strict;
 use lib './lib';
 use CIF::Msg;
+use CIF::Msg::Support;
 use RFC5070_IODEF_v1_pb2;
 use MAEC_v2_pb2;
 use Data::Dumper;
 
-print "CIF::Msg demo. IDL version: ". getOurVersion() . "\n";
+print "CIF::Msg demo. IDL version: ". CIF::Msg::Support::getOurVersion() . "\n";
 
 # construct a simple inner message, we'll use MAEC
 
@@ -21,7 +22,7 @@ my $maec = CIF::MAEC::MaecPlaceholder->encode({
 
 my $m = CIF::Msg::MessageType->encode({
 	type => CIF::Msg::MessageType::MsgType::SUBMISSION(),
-	version => getOurVersion(),   # _always_ include this when making a message. set to '1' to test version checking code
+	version => CIF::Msg::Support::getOurVersion(),   # _always_ include this when making a message. set to '1' to test version checking code
 	submissionRequest => [ 
 		{
 			baseObjectType => 'MAEC_v2_pb2',
@@ -34,7 +35,7 @@ my $m = CIF::Msg::MessageType->encode({
 
 my $x = CIF::Msg::MessageType->decode($m);
 
-if (!versionCheck($x)) {
+if (!CIF::Msg::Support::versionCheck($x)) {
 	die "Sorry, version of received message is incompatible. We can not process it.\n" .
 		"\tOur compiled in version is: " . getOurVersion() . "\n" .
 		"\tRecvd message is version: " . $x->get_version;
@@ -54,27 +55,3 @@ print "\ndecoded first inner message: " . Dumper($x2) . "\n";
 
 
 exit 0;
-
-# returns 1 if integer portion of version of received message is 
-# equivalent to our compiled in version
-
-sub versionCheck {
-	my $m = shift;
-	if (ref($m) ne "CIF::Msg::MessageType") {
-		warn "versionCheck expected CIF::Msg::MessageType but got: ". ref($m). "\n";
-		return 0;
-	}
-	my $ourV = getOurVersion();
-	return 0 if (int($m->get_version) != int($ourV));	
-	return 1;
-}
-
-# Find the version of our 'compiled in' protocol buffer IDL
-
-sub getOurVersion {
-	return CIF::Msg::MessageType->decode(
-		CIF::Msg::MessageType->encode({
-			type => CIF::Msg::MessageType::MsgType::SUBMISSION(),
-		})
-	)->get_version;
-}
