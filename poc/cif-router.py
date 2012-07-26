@@ -18,13 +18,16 @@
 #         locally accepted types:
 #            REGISTER, UNREGISTER, LIST-CLIENTS
 #         locally generated replies:
-#            REGISTERED, UNREGISTERED, WHORU, OK, FAILED
+#            UNAUTHORIZED, OK, FAILED
+#
+# communication between router and clients is via CIF.msg passing
+# the 'ControlStruct' portion of CIF.msg is used for communication
 #
 # a typical use case:
 # 
 # cif-smrt's REQ connects to ROUTER and sends a REGISTER message with dst=cif-router
-# cif-router's ROUTER responds with REGISTERED
-#    [the above eventually will imply encryption/authentication]
+# cif-router's ROUTER responds with SUCCESS (if valid) or UNAUTHORIZED (if not valid)
+#     the apikey will be validated during this step
 # cif-router's XSUB connects to cif-smrt's XPUB
 # cif-smrt begins publishing CIF messages 
 # cif-router re-publishes the CIF messages to clients connected to cif-router's XPUB 

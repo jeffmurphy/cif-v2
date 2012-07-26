@@ -164,8 +164,8 @@ myname = myip + ":" + publisherport + "|" + myid
 try:
     print "Register with " + cifrouter + " (req->rep)"
     req = ctrlsocket(myname, cifrouter)
-    register(req, cifrouter)
     publisher = publishsocket(publisherport)
+    register(req, cifrouter)
 
     time.sleep(1) # wait for router to connect, sort of lame but see this a lot in zmq code
     
