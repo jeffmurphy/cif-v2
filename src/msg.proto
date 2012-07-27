@@ -11,9 +11,9 @@ message MessageType {
     enum MsgType {
         QUERY       = 1;
         SUBMISSION  = 2;
-        REPLY       = 3;
+        REPLY       = 4;
     }
-    
+
     message QueryStruct {
         required string query   = 1;
         optional bool nolog     = 2;
@@ -61,4 +61,7 @@ message MessageType {
     repeated QueryRequest queryRequest           = 6;
     repeated SubmissionRequest submissionRequest = 7;
     repeated Reply reply                         = 8;
+    
 }
+
+

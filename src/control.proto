@@ -1,0 +1,58 @@
+package CIF.msg;
+ 
+ 
+message RegisterResponse {
+	required int32 REQport = 1;
+	required int32 PUBport = 2;
+}
+	
+message IPublishRequest {
+	required string ipaddress = 1;
+	required int32 port = 2;
+}
+	
+message ListClientsResponse {
+	repeated string client = 1;
+	repeated int32 connectTimestamp = 2;
+}
+  	
+message ControlType {
+    enum StatusType {
+        SUCCESS         = 1;
+        FAILED          = 2;
+        UNAUTHORIZED    = 3;
+        DUPLICATE       = 4;
+    }
+    
+    enum MsgType {
+        COMMAND     = 1;
+        REPLY       = 2;
+    }
+    
+    // these messages are used for communication between the CIF
+    // components. 
+    
+    enum CommandType {
+    	REGISTER    = 1;
+    	UNREGISTER  = 2;
+    	IPUBLISH    = 3;
+    	LISTCLIENTS = 4;
+    	SHUTDOWN    = 5;
+    	STATS       = 6;
+    	PING        = 7;
+    	PAUSE       = 8;
+    	RESUME      = 9;
+    	RESTART     = 10;
+    }
+    
+    optional float version = 1 [default = 20120727];
+    optional string dst        = 2;
+    optional string src        = 3;
+        
+    optional CommandType type  = 4;
+	optional RegisterResponse registerResponse = 5;
+	optional IPublishRequest iPublishRequest = 6;
+	optional ListClientsResponse listClientsResponse = 7;
+}
+
+
