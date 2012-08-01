@@ -46,13 +46,17 @@ message ControlType {
     }
     
     optional float version = 1 [default = 20120727];
-    optional string dst        = 2;
-    optional string src        = 3;
-        
-    optional CommandType type  = 4;
-	optional RegisterResponse registerResponse = 5;
-	optional IPublishRequest iPublishRequest = 6;
-	optional ListClientsResponse listClientsResponse = 7;
+    optional string dst          = 2;
+    optional string src          = 3;
+    optional StatusType status   = 4;
+    optional MsgType type        = 5;
+    optional CommandType command = 6;
+    
+    optional string apikey       = 7;
+    
+	optional RegisterResponse registerResponse = 8;
+	optional IPublishRequest iPublishRequest = 9;
+	optional ListClientsResponse listClientsResponse = 10;
 }
 
 
