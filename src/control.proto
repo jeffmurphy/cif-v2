@@ -45,7 +45,7 @@ message ControlType {
     	RESTART     = 10;
     }
     
-    optional float version = 1 [default = 20120727];
+    optional float version = 1 [default = 20120727.00];
     optional string dst          = 2;
     optional string src          = 3;
     optional StatusType status   = 4;

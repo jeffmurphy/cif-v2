@@ -48,3 +48,4 @@ src/pb-perl/lib/RFC5070_IODEF_v1_pb2.pm
 src/pb-perl/lib/CIF/_Msg.pm
 src/pb-python/gen-py/control_pb2.py
 src/pb-perl/lib/CIF/Msg/Control.pm
+src/pb-perl/lib/CIF/Msg/Control.pm
