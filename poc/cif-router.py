@@ -41,12 +41,14 @@ import threading
 import getopt
 import json
 
-sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
+#sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
+sys.path.append('/media/psf/Home/git/cif-protocol/src/pb-python/gen-py')
 import msg_pb2
 import feed_pb2
 import RFC5070_IODEF_v1_pb2
 import MAEC_v2_pb2
-
+import control_pb2
+import cifsupport
 
 myname = "cif-router"
 
@@ -62,32 +64,36 @@ def register(clientname):
     
 
     clients[clientname] = time.time()
-    return 'REGISTERED'
+    return control_pb2.ControlType.SUCCESS
 
-def dosubscribe(clientname):
-    if clientname in publishers :
+def dosubscribe(m):
+    if m.src in publishers :
         print "we've seen this client before. re-using old connection."
-    else :
-        publishers[clientname] = time.time()
-        t = str(clientname).split('|')
-        print "dosubscribe: connect our xsub -> xpub on " + t[0]
-        xsub.connect("tcp://" + t[0])
-    return 'OK'
+    else:
+        publishers[m.src] = time.time()
+        addr = m.iPublishRequest.ipaddress
+        port = m.iPublishRequest.port
+        print "dosubscribe: connect our xsub -> xpub on " + addr + ":" + str(port)
+        xsub.connect("tcp://" + addr + ":" + str(port))
+    return control_pb2.ControlType.SUCCESS
 
 def unregister(clientname):
     if clientname in clients :
         print "\tunregistered"
         # see explanation in register()
         #del clients[clientname]
-        return 'UNREGISTERED'
+        return control_pb2.ControlType.SUCCESS
     print "\tclient unknown"
-    return 'WHORU'
+    return control_pb2.ControlType.FAILED
 
 def list_clients():
     l = ''
+    m = control_pb2.ListClientsResponse()
     for k in clients.keys():
-        l = l + "%{client}s %{time}d\n" % { 'client' : k, 'time' : clients[k] }
-    return l
+        m.client.extend(k)
+        m.connectTimestamp.extend(clients[k])
+        #l = l + "%{client}s %{time}d\n" % { 'client' : k, 'time' : clients[k] }
+    return m
 
 def myrelay(pubport):
 #    zmq.device(zmq.FORWARDER, xpub, xsub)
@@ -149,37 +155,64 @@ print "Entering event loop"
 try:
     while True:
         print "Get incoming message"
-        msg = socket.recv_multipart()
-    
-        print "Got msg: ", msg
-
-        msgfrom = msg[0]
-        msgto = msg[2]
-        msgcontent = msg[4]
-    
-        if msgto == myname :
-            print "msg for me!"
+        rawmsg = socket.recv_multipart()
+        #print " Got ", rawmsg
+        msg = control_pb2.ControlType()
         
-            if msgcontent == "REGISTER":
-                  print "REGISTER " + msgfrom
-                  rv = register(msgfrom)
-                  socket.send_multipart( [ msgfrom, '', rv, '', 
-                                          json.dumps({ 'REQ' : routerport, 'PUB' : publisherport }) ] )
-                              
-            elif msgcontent == "UNREGISTER":
-                print "UNREGISTER" + msgfrom
-                rv = unregister(msgfrom)
-                socket.send_multipart( [ msgfrom, '', rv ] )
+        try:
+            msg.ParseFromString(rawmsg[2])
+        except Exception as e:
+            print "Received message isn't a protobuf: ", e
+        else:
+            msgreallyfrom = rawmsg[0] # save the ZMQ identity of who sent us this message
             
-            elif msgcontent == "LIST-CLIENTS":
-                 print "LIST-CLIENTS for " + msgfrom
-                 rv = list_clients()
-                 socket.send_multipart( [ msgfrom, '', 'OK', '', rv ] )
-                 
-            elif msgcontent == "IPUBLISH":
-                 print "IPUBLISH " + msgfrom
-                 rv = dosubscribe(msgfrom)
-                 socket.send_multipart( [msgfrom, '', 'OK', '', rv ] )
+            #print "Got msg: ", msg
+    
+            try:
+                cifsupport.versionCheck(msg)
+            except Exception as e:
+                print "Received message has incompatible version: ", e
+            else:
+            
+                if cifsupport.isControl(msg):
+                    msgfrom = msg.src
+                    msgto = msg.dst
+                    msgcommand = msg.command
+                    
+                    if msgto == myname and msg.type == control_pb2.ControlType.COMMAND:
+                        print "COMMAND for me: ", msgcommand
+                    
+                        if msgcommand == control_pb2.ControlType.REGISTER:
+                              print "REGISTER from: " + msgfrom
+                              rv = register(msgfrom)
+                              msg.status = rv
+                              msg.type = control_pb2.ControlType.REPLY
+                              if rv == control_pb2.ControlType.SUCCESS:
+                                  msg.registerResponse.REQport = routerport
+                                  msg.registerResponse.PUBport = publisherport
+                                  print " Registered successfully. Sending reply."
+                              else:
+                                  print " Failed to register. Sending reply."
+                              socket.send_multipart([msgreallyfrom, '', msg.SerializeToString(), ''])
+                                          
+                        elif msgcommand == control_pb2.ControlType.UNREGISTER:
+                            print "UNREGISTER from: " + msgfrom
+                            rv = unregister(msgfrom)
+                            msg.status = rv
+                            socket.send_multipart([ msgreallyfrom, '', msg.SerializeToString(), ''])
+                        
+                        elif msgcommand == control_pb2.ControlType.LISTCLIENTS:
+                             print "LIST-CLIENTS for: " + msgfrom
+                             rv = list_clients()
+                             msg.status = control_pb2.ControlType.SUCCESS
+                             msg.listClientsReponse = rv
+                             socket.send_multipart( [ msgreallyfrom, '', msg.SerializeToString(), '' ] )
+                             
+                        elif msgcommand == control_pb2.ControlType.IPUBLISH:
+                             print "IPUBLISH from: " + msgfrom
+                             rv = dosubscribe(msg)
+                             msg.status = rv
+                             socket.send_multipart( [msgreallyfrom, '', msg.SerializeToString(), ''] )
 
 except KeyboardInterrupt:
     print "Shut down."
