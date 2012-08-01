@@ -11,6 +11,7 @@ my $todo = [
     #[ input filename, output filename,  packagename ] 
 	[ 'msg.proto',                'lib/CIF/_Msg.pm',               'CIF::_Msg'              ],
 	[ 'feed.proto',               'lib/CIF/Msg/Feed.pm',           'CIF::Msg::Feed'         ],
+	[ 'control.proto',            'lib/CIF/Msg/Control.pm',        'CIF::Msg::Control'      ],
 	[ 'ICSG-v1_7-2007.proto',     'lib/ICSG_v1_7_2007_pb2.pm',     'ICSG_v1_7_2007_pb2'     ],
 	[ 'RFC5070-IODEF-v1.proto',   'lib/RFC5070_IODEF_v1_pb2.pm',   'RFC5070_IODEF_v1_pb2'   ],
 	[ 'RFC4765-IDMEF-2007.proto', 'lib/RFC4765_IDMEF_2007_pb2.pm', 'RFC4765_IDMEF_2007_pb2' ],
