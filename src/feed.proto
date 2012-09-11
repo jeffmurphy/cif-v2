@@ -14,10 +14,22 @@ message FeedType {
         required string value = 2;
     }
 
-    // TODO: this is a string for now
-    // git describe will give off string references
-    // based on the tags, may not be optimal
-    required string version                  = 1;
+	// this is the version of this message format. if you alter/add
+	// 'required' fields or enum values, then you must set the major version to 
+	// be the date on which the new format was approved by the Ministry of
+	// Protocols. If you make a change to an optional field, you can 
+	// increment the minor version (although it's not strictly necessary)
+	
+	// see "Extending" at the bottom of https://developers.google.com/protocol-buffers/docs/pythontutorial
+	
+	// the version format is YYYYMMDD.##
+	// note, temporarily droppeding the .## portion from this file so the perl module will build
+	// see https://github.com/collectiveintel/google-protocolbuffers-perl/issues/1
+	
+	// the version field SHALL always be the first field in the message "= 1"
+    optional float version      = 1 [default = 20120531];
+
+
     // guid should evolve to the ContactType from IODEF
     optional string guid                    = 2;
     

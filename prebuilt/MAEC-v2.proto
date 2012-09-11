@@ -1,0 +1,12 @@
+// at present, MAEC hasn't been translated into IDL, so this is just a faux
+// file for testing the cif-protocol build/install process
+
+package CIF.MAEC;
+
+message maecPlaceholder
+{
+	optional float version = 1 [ default = 20120628 ];
+   	optional string msg = 2;
+   	optional int32 i = 3;
+}
+
