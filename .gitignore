@@ -23,12 +23,7 @@ src/pb-perl/META.yml
 src/pb-perl/MYMETA.json
 src/pb-perl/MYMETA.yml
 src/pb-perl/pm_to_blib
-src/pb-python/gen-py/feed_pb2.py
-src/pb-python/gen-py/ICSG_v1_7_2007_pb2.py
-src/pb-python/gen-py/MAEC_v2_pb2.py
-src/pb-python/gen-py/msg_pb2.py
-src/pb-python/gen-py/RFC4765_IDMEF_2007_pb2.py
-src/pb-python/gen-py/RFC5070_IODEF_v1_pb2.py
+src/pb-python/gen-py/*.py
 *.pyc
 src/RFC4765-IDMEF-2007.proto
 src/RFC4765-IDMEF-2007.thrift
@@ -46,6 +41,5 @@ src/pb-perl/lib/MAEC_v2_pb2.pm
 src/pb-perl/lib/RFC4765_IDMEF_2007_pb2.pm
 src/pb-perl/lib/RFC5070_IODEF_v1_pb2.pm
 src/pb-perl/lib/CIF/_Msg.pm
-src/pb-python/gen-py/control_pb2.py
 src/pb-perl/lib/CIF/Msg/Control.pm
 src/pb-perl/lib/CIF/Msg/Control.pm

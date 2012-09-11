@@ -100,6 +100,7 @@ done
 AC_CONFIG_FILES([
                  Makefile
                  src/Makefile
+                 src/pb-python/gen-py/cifsupport.py
 ])
 
 
