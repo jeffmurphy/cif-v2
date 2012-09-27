@@ -40,13 +40,16 @@ my $c = CIF::Msg::ControlType->encode({
 	command => CIF::Msg::ControlType::CommandType::REGISTER(),
 	src => 'me',
 	dst => 'you',
-	version => 20120727, 
+	version => 20120927, 
 	#version => CIF::Msg::Support::getOurVersion("Control"), # _required_
 });
 
 my $dc = CIF::Msg::ControlType->decode($c);
 
-print $dc->get_version . " \n";
+# oddly, even tho we force "20120927" above, when we decode it, it is incremented by one ("20120928")
+print "Control message created with version: " . $dc->get_version . " \n";
+
+
 #
 #if (!CIF::Msg::Support::versionCheck($dc)) {
 #	die "Sorry, version of received message is incompatible. We can not process it.\n" .
@@ -57,7 +60,7 @@ print $dc->get_version . " \n";
 my $x = CIF::Msg::MessageType->decode($m);
 
 if (!CIF::Msg::Support::versionCheck($x)) {
-	die "Sorry, version of received message is incompatible. We can not process it.\n" .
+	warn "Sorry, version of received message is incompatible. We can not process it.\n" .
 		"\tOur compiled in version is: " . CIF::Msg::Support::getOurVersion("Message") . "\n" .
 		"\tRecvd message is version: " . $x->get_version;
 }

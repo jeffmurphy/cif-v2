@@ -45,18 +45,19 @@ message ControlType {
     	RESTART     = 10;
     }
     
-    optional float version = 1 [default = 20120727.00];
-    optional string dst          = 2;
-    optional string src          = 3;
-    optional StatusType status   = 4;
-    optional MsgType type        = 5;
-    optional CommandType command = 6;
+    optional float version       = 1 [default = 20120927.00];
+    optional bytes seq           = 2; // used to match commands to replies, must be preserved in replies 
+    optional string dst          = 3;
+    optional string src          = 4;
+    optional StatusType status   = 5;
+    optional MsgType type        = 6;
+    optional CommandType command = 7;
     
-    optional string apikey       = 7;
+    optional string apikey       = 8;
     
-	optional RegisterResponse registerResponse = 8;
-	optional IPublishRequest iPublishRequest = 9;
-	optional ListClientsResponse listClientsResponse = 10;
+	optional RegisterResponse registerResponse       =  9;
+	optional IPublishRequest iPublishRequest         = 10;
+	optional ListClientsResponse listClientsResponse = 11;
 }
 
 

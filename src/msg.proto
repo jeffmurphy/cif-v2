@@ -50,17 +50,19 @@ message MessageType {
 	// see https://github.com/collectiveintel/google-protocolbuffers-perl/issues/1
 	
 	// the version field SHALL always be the first field in the message "= 1"
-    optional float version      = 1 [default = 20120622];
+    optional float version      = 1 [default = 20120927];
 
-    optional string apikey      = 2;
-    optional string guid        = 3;
+    optional bytes  seq         = 2; // used to match queries with replies. must be preserved in replies
 
-    required MsgType type       = 4;
-    optional StatusType status  = 5;
+    optional string apikey      = 3;
+    optional string guid        = 4;
 
-    repeated QueryRequest queryRequest           = 6;
-    repeated SubmissionRequest submissionRequest = 7;
-    repeated Reply reply                         = 8;
+    required MsgType type       = 5;
+    optional StatusType status  = 6;
+
+    repeated QueryRequest queryRequest           = 7;
+    repeated SubmissionRequest submissionRequest = 8;
+    repeated Reply reply                         = 9;
     
 }
 

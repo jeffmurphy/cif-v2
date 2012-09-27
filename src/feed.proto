@@ -29,7 +29,6 @@ message FeedType {
 	// the version field SHALL always be the first field in the message "= 1"
     optional float version      = 1 [default = 20120531];
 
-
     // guid should evolve to the ContactType from IODEF
     optional string guid                    = 2;
     
