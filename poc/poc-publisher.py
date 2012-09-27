@@ -50,114 +50,12 @@ import feed_pb2
 import RFC5070_IODEF_v1_pb2
 import MAEC_v2_pb2
 import control_pb2
-
 import cifsupport
 
-def ctrlsocket(apikey, cifrouter, myip, publisherport, myid):
-    # Socket to talk to cif-router
-    req = context.socket(zmq.REQ)
-    myname = myip + ":" + publisherport + "|" + myid
-    req.setsockopt(zmq.IDENTITY, myname)
-    req.connect('tcp://' + cifrouter)
-    return req
+sys.path.append('../../cif-router/poc')
+from CIF.CtrlCommands.Clients import *
+from CIF.Foundation import Foundation
 
-def publishsocket(publisherport):
-    # Socket to publish from
-    print "Creating publisher socket on " + publisherport
-    publisher = context.socket(zmq.PUB)
-    publisher.bind('tcp://*:' + publisherport)
-    return publisher
-
-def unregister(req, apikey, cifrouter, myid):
-    print "Send UNREGISTER to cif-router (" + cifrouter + ")"
-    
-    msg = control_pb2.ControlType()
-    msg.version = msg.version # required
-    msg.apikey = apikey
-    msg.type = control_pb2.ControlType.COMMAND
-    msg.command = control_pb2.ControlType.UNREGISTER
-    msg.dst = 'cif-router'
-    msg.src = myid
-    msg.apikey = apikey;
-
-    req.send(msg.SerializeToString())
-    
-    reply = req.recv()
-    msg.ParseFromString(reply)
-    
-    try:
-        cifsupport.versionCheck(msg)
-    except Exception as e:
-        print "Received message was bad: ", e
-    else:
-        print "\tGot reply."
-        if msg.status == control_pb2.ControlType.SUCCESS:
-            print "\t\tunregistered successfully"
-        else:
-            print "\t\tnot sure? " + str(msg.status)
-
-def register(apikey, req, myip, publisherport, myid, cifrouter):
-    print "Send REGISTER to cif-router (" + cifrouter + ")"
-    
-    msg = control_pb2.ControlType()
-    msg.version = msg.version # required
-    msg.apikey = apikey
-    msg.type = control_pb2.ControlType.COMMAND
-    msg.command = control_pb2.ControlType.REGISTER
-    msg.dst = 'cif-router'
-    msg.src = myid
-    print " Sending REGISTER: ", msg
-    
-    req.send_multipart([msg.SerializeToString(), ''])
-    
-    print "REGISTER: Waiting for reply."
-    reply = req.recv_multipart()
-    print "REGISTER: Got reply: ", reply
-
-    msg.ParseFromString(reply[0])
-    
-    try:
-        cifsupport.versionCheck(msg)
-    except Exception as e:
-        print "Received message was bad: ", e
-    else:
-        print "\tReply is good"
-        if msg.status == control_pb2.ControlType.SUCCESS:
-            print "\t\tregistered successfully"
-        elif msg.status == control_pb2.ControlType.DUPLICATE:
-            print "\t\talready registered?"
-    
-            # tell the router that we're a publisher so it will subscribe to us
-    
-        print "Send IPUBLISH to cif-router (" + cifrouter + ")"
-        
-        msg = control_pb2.ControlType()
-        msg.version = msg.version # required
-        msg.apikey = apikey
-        msg.type = control_pb2.ControlType.COMMAND
-        msg.command = control_pb2.ControlType.IPUBLISH
-        msg.dst = 'cif-router'
-        msg.src = myid
-        msg.iPublishRequest.port = int(publisherport)
-        msg.iPublishRequest.ipaddress = myip
-        req.send(msg.SerializeToString())
-        
-        print "\tWaiting for reply."
-        reply = req.recv_multipart()
-        print "\tGot reply: ", reply
-        msg.ParseFromString(reply[0])
-        
-        if msg.status == control_pb2.ControlType.SUCCESS:
-            print "\tRouter says OK"
-            # cif-router should connect to our PUB socket (zmq won't tell us)
-        elif msg.status != control_pb2.ControlType.SUCCESS:
-            print "\tRouter has a problem with us? " + msg.status
-    
-
-def ctrlc(req, apikey, cifrouter, myid):
-    print "Shutting down."
-    unregister(req, apikey, cifrouter, myid)
-    sys.exit(0)
     
 def usage():
     print "\
@@ -169,13 +67,7 @@ def usage():
     #     -n  number of messages to send (and then quit)\n\
     #     -k  apikey\n"
     
-def ctrl(rep, controlport):
-    print "Creating control socket on :" + controlport
-    # Socket to accept control requests on
-    rep = context.socket(zmq.REP);
-    rep.bind('tcp://*:' + controlport)
-    
-global req
+
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'c:p:r:t:m:h')
@@ -215,16 +107,18 @@ for o, a in opts:
 
 myip = socket.gethostbyname(socket.gethostname()) # has caveats
 
-print "ZMQ::Context"
+global cf
+cf = Foundation()
 
-context = zmq.Context()
 
 try:
     print "Register with " + cifrouter + " (req->rep)"
-    req = ctrlsocket(apikey, cifrouter, myip, publisherport, myid)
-    publisher = publishsocket(publisherport)
-    register(apikey, req, myip, publisherport, myid, cifrouter)
 
+    cf.ctrlsocket(myip, controlport, myid, cifrouter)
+    (routerport, routerpubport) = cf.register(apikey, myip, myid, cifrouter)
+    publisher = cf.publishsocket(publisherport)
+    cf.ipublish(apikey, myip, myid, cifrouter)
+    
     time.sleep(1) # wait for router to connect, sort of lame but see this a lot in zmq code
     
     hasMore = True
@@ -252,8 +146,8 @@ try:
         elif count > 0:
             count = count - 1
         
-    unregister(req, apikey, cifrouter, myid)
+    cf.unregister(apikey, cifrouter, myid)
     
 except KeyboardInterrupt:
-    ctrlc(req, apikey, cifrouter, myid)
+    cf.ctrlc(apikey, cifrouter, myid)
     
