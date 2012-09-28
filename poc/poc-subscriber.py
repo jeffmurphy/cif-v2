@@ -90,16 +90,21 @@ myip = socket.gethostbyname(socket.gethostname()) # has caveats
 apikey = "1234567890abcdef"
 
 global cf
-cf = Foundation()
+cf = Foundation({'apikey' : apikey,
+                 'myip'   : myip,
+                 'cifrouter' : cifrouter,
+                 'controlport' : controlport,
+                 'myid' : myid,
+                 'routerid' : "cif-router"
+                 })
 
 
 try:
     print "Register with " + cifrouter + " (req->rep)"
-    cf.ctrlsocket(myip, controlport, myid, cifrouter)
-    (routerport, routerpubport) = cf.register(apikey, myip, myid, cifrouter)
-    routerhname = cifrouter.split(':')
+    cf.ctrlsocket()
+    (routerport, routerpubport) = cf.register()
 
-    subscriber = cf.subscribersocket(routerhname[0] + ":" + str(routerpubport))
+    subscriber = cf.subscribersocket()
     
     time.sleep(1) # wait for router to connect, sort of lame but see this a lot in zmq code
     
@@ -117,8 +122,8 @@ try:
 
 
         
-    cf.unregister(apikey, cifrouter, myid)
+    cf.unregister()
     
 except KeyboardInterrupt:
-    cf.ctrlc(apikey, cifrouter, myid)
+    cf.ctrlc()
 

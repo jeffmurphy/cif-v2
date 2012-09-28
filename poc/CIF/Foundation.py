@@ -26,7 +26,23 @@ It also provides the primary event loop for handling ZMQ replies.
 
 
 class Foundation(object):
-    def __init__ (self):
+    def __init__ (self, p):
+        self.p = p
+        self.apikey = self.param('apikey')
+        self.myip = self.param('myip')
+        
+        self.cifrouter = self.param('cifrouter')
+        x = self.cifrouter.split(':')
+        self.router_hname = x[0]
+        self.routerport = x[1]
+        
+        self.controlport = self.param('controlport')
+        self.publisherport = self.param('publisherport')
+        
+        self.routerpubport = None  # set by 'register'
+        self.myid = self.param('myid')
+        self.routerid = self.param('routerid')
+        
         self._lock = threading.RLock()
         self.debug = 0
         self.context = zmq.Context()
@@ -36,6 +52,7 @@ class Foundation(object):
         self.subscriber = None
         self.publisher = None
         self.req = None
+        self.rep = None
                 
         # we want the register, unregister and ipublish commands to be
         # synchronous. the following helps achieve that
@@ -56,7 +73,11 @@ class Foundation(object):
         self.evthread.daemon = True
         self.evthread.start()
         
-
+    def param(self, k):
+        if k in self.p:
+            return self.p[k]
+        return None
+    
     def md5(self, s):
         _md5 = hashlib.md5()
         _md5.update(s)
@@ -71,28 +92,27 @@ class Foundation(object):
         return self.debug
     
 
-    def ctrlsocket(self, myip, controlport, myid, cifrouter):
+    def ctrlsocket(self):
         # Socket to talk to cif-router
         self.req = self.context.socket(zmq.DEALER);
-        myname = myip + ":" + controlport + "|" + myid
+        myname = self.myip + ":" + self.controlport + "|" + self.myid
         self.req.setsockopt(zmq.IDENTITY, myname)
-        self.req.connect('tcp://' + cifrouter)
+        self.req.connect('tcp://' + self.cifrouter)
         return self.req
     
-    def subscribersocket(self, publisher):
+    def subscribersocket(self):
         # Socket to publish from
         if self.debug > 1:
-            print "Creating subscriber socket and connecting to " + publisher
+            print "Creating subscriber socket and connecting to " + self.publisher
         self.subscriber = self.context.socket(zmq.SUB)
-        self.subscriber.connect('tcp://' + publisher)
+        self.subscriber.connect('tcp://' + self.router_hname + ":" + str(self.routerpubport))
         self.subscriber.setsockopt(zmq.SUBSCRIBE, '')
         return self.subscriber
     
-    def publishsocket(self, publisherport):
+    def publishsocket(self):
         # Socket to publish from
         self.publisher = self.context.socket(zmq.PUB)
-        self.publisher.bind('tcp://*:' + publisherport)
-        self.publisherport = publisherport
+        self.publisher.bind('tcp://*:' + self.publisherport)
         return self.publisher
 
     def registerFinished(self, decoded_msg):
@@ -105,17 +125,17 @@ class Foundation(object):
         self.unregister_synchronizer.release() # should cause unregister to proceed
 
 
-    def unregister(self, apikey, cifrouter, myid):
+    def unregister(self):
         if self.debug > 1:
-            print "Send UNREGISTER to cif-router (" + cifrouter + ")"
+            print "Send UNREGISTER to cif-router (" + self.cifrouter + ")"
         
         msg = control_pb2.ControlType()
         msg.version = msg.version # required
-        msg.apikey = apikey
+        msg.apikey = self.apikey
         msg.type = control_pb2.ControlType.COMMAND
         msg.command = control_pb2.ControlType.UNREGISTER
         msg.dst = 'cif-router'
-        msg.src = myid
+        msg.src = self.myid
 
         msg.seq = self.md5(msg.SerializeToString())
         
@@ -133,20 +153,20 @@ class Foundation(object):
                 print "\t\tnot sure? " + self.unregister_reply.status
     
     
-    def register(self, apikey, myip, myid, cifrouter):
-        routerport = 0
-        routerpubport = 0
+    def register(self):
+        self.routerport = 0
+        self.routerpubport = 0
         
         if self.debug > 1:
             print "Send REGISTER to cif-router (" + cifrouter + ")"
         
         msg = control_pb2.ControlType()
         msg.version = msg.version # required
-        msg.apikey = apikey
+        msg.apikey = self.apikey
         msg.type = control_pb2.ControlType.COMMAND
         msg.command = control_pb2.ControlType.REGISTER
-        msg.dst = 'cif-router'
-        msg.src = myid
+        msg.dst = self.routerid
+        msg.src = self.myid
         msg.seq = self.md5(msg.SerializeToString())
 
         if self.debug > 2:
@@ -160,16 +180,16 @@ class Foundation(object):
         if self.debug > 2:
             print "\tGot reply: ", self.register_reply
             
-        routerport = self.register_reply.registerResponse.REQport
-        routerpubport = self.register_reply.registerResponse.PUBport
+        self.routerport = self.register_reply.registerResponse.REQport
+        self.routerpubport = self.register_reply.registerResponse.PUBport
         if self.register_reply.status == control_pb2.ControlType.SUCCESS:
             if self.debug > 2:
                 print "\t\tregistered successfully"
-            return (routerport, routerpubport)
+            return (self.routerport, self.routerpubport)
         elif self.register_reply.status == control_pb2.ControlType.DUPLICATE:
             if self.debug > 2:
                 print "\t\talready registered?"
-            return (routerport, routerpubport)
+            return (self.routerport, self.routerpubport)
         else:
             if self.debug > 2:
                 print "\t\tregister failed."
@@ -180,16 +200,16 @@ class Foundation(object):
         self.ipublish_reply = decoded_msg
         self.ipublish_synchronizer.release() # should cause register to proceed
     
-    def ipublish(self, apikey, myip, myid, cifrouter):
+    def ipublish(self):
         msg = control_pb2.ControlType()
         msg.version = msg.version # required
-        msg.apikey = apikey
+        msg.apikey = self.apikey
         msg.type = control_pb2.ControlType.COMMAND
         msg.command = control_pb2.ControlType.IPUBLISH
-        msg.dst = 'cif-router'
-        msg.src = myid
+        msg.dst = self.routerid
+        msg.src = self.myid
         msg.iPublishRequest.port = int(self.publisherport)
-        msg.iPublishRequest.ipaddress = myip
+        msg.iPublishRequest.ipaddress = self.myip
         msg.seq = self.md5(msg.SerializeToString())
         self.sendmsg(msg, self.ipublishFinished)
         self.ipublish_synchronizer = threading.Semaphore(0)
@@ -201,17 +221,18 @@ class Foundation(object):
         elif msg.status != control_pb2.ControlType.SUCCESS:
             raise Exception("Router has a problem with us? " + msg.status)
         
-    def ctrlc(self, apikey, cifrouter, myid):
-        print "Shutting down."
-        self.unregister(apikey, cifrouter, myid)
+    def ctrlc(self):
+        if self.debug > 0:
+            print "Shutting down."
+        self.unregister()
         sys.exit(0)
     
-    def ctrl(self, rep, controlport):
+    def ctrl(self):
         if self.debug > 1:
-            print "Creating control socket on :" + controlport
+            print "Creating control socket on :" + self.controlport
         # Socket to accept control requests on
-        rep = self.context.socket(zmq.REP);
-        rep.bind('tcp://*:' + controlport);
+        self.rep = self.context.socket(zmq.REP);
+        self.rep.bind('tcp://*:' + self.controlport);
         
     def eventloop(self):
         """
