@@ -66,12 +66,7 @@ class Foundation(object):
         self.ipublish_synchonizer = None
         self.ipublish_reply = None
         
-        # the event loop thread. a daemon so that if our main thread exits,
-        # this thread doesn't keep the process alive
-        
-        self.evthread = threading.Thread(target=self.eventloop, args=())
-        self.evthread.daemon = True
-        self.evthread.start()
+
         
     def param(self, k):
         if k in self.p:
@@ -98,6 +93,14 @@ class Foundation(object):
         myname = self.myip + ":" + self.controlport + "|" + self.myid
         self.req.setsockopt(zmq.IDENTITY, myname)
         self.req.connect('tcp://' + self.cifrouter)
+        
+        # the event loop thread. a daemon so that if our main thread exits,
+        # this thread doesn't keep the process alive
+        
+        self.evthread = threading.Thread(target=self.eventloop, args=())
+        self.evthread.daemon = True
+        self.evthread.start()
+        
         return self.req
     
     def subscribersocket(self):
