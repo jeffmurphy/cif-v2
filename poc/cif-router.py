@@ -174,12 +174,12 @@ try:
     while True:
         print "[up " + str(int(mystats.getuptime())) + "s]: Get incoming message"
         rawmsg = socket.recv_multipart()
-        #print " Got ", rawmsg
+        print " Got ", rawmsg
         
         msg = control_pb2.ControlType()
         
         try:
-            msg.ParseFromString(rawmsg[1])
+            msg.ParseFromString(rawmsg[2])
         except Exception as e:
             print "Received message isn't a protobuf: ", e
             mystats.setbad()
@@ -218,14 +218,14 @@ try:
                                   print " Registered successfully. Sending reply."
                               else:
                                   print " Failed to register. Sending reply."
-                              socket.send_multipart([msgreallyfrom, msg.SerializeToString()])
+                              socket.send_multipart([msgreallyfrom, '', msg.SerializeToString()])
                                           
                         elif msgcommand == control_pb2.ControlType.UNREGISTER:
                             print "UNREGISTER from: " + msgfrom
                             rv = unregister(msgfrom)
                             msg.status = rv
                             msg.seq = msgid
-                            socket.send_multipart([ msgreallyfrom, msg.SerializeToString()])
+                            socket.send_multipart([ msgreallyfrom, '', msg.SerializeToString()])
                         
                         elif msgcommand == control_pb2.ControlType.LISTCLIENTS:
                              print "LIST-CLIENTS for: " + msgfrom
@@ -241,13 +241,13 @@ try:
                              
                              #msg.listClientsReponse.client = rv.client[:]
                              #msg.listClientsResponse.connectTimestamp = rv.connectTimestamp[:]
-                             socket.send_multipart( [ msgreallyfrom, msg.SerializeToString() ] )
+                             socket.send_multipart( [ msgreallyfrom, '', msg.SerializeToString() ] )
                              
                         elif msgcommand == control_pb2.ControlType.IPUBLISH:
                              print "IPUBLISH from: " + msgfrom
                              rv = dosubscribe(msg)
                              msg.status = rv
-                             socket.send_multipart( [msgreallyfrom, msg.SerializeToString()] )
+                             socket.send_multipart( [msgreallyfrom, '', msg.SerializeToString()] )
                     else:
                         print "COMMAND for someone else: cmd=", msgcommand, "src=", msgfrom, " dst=", msgto
                         

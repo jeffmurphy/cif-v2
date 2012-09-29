@@ -104,11 +104,11 @@ class Foundation(object):
         return self.req
     
     def subscribersocket(self):
-        # Socket to publish from
+        remote_publisher = 'tcp://' + self.router_hname + ":" + str(self.routerpubport)
         if self.debug > 1:
-            print "Creating subscriber socket and connecting to " + self.publisher
+            print "Creating subscriber socket and connecting to " + remote_publisher
         self.subscriber = self.context.socket(zmq.SUB)
-        self.subscriber.connect('tcp://' + self.router_hname + ":" + str(self.routerpubport))
+        self.subscriber.connect(remote_publisher)
         self.subscriber.setsockopt(zmq.SUBSCRIBE, '')
         return self.subscriber
     
@@ -161,7 +161,7 @@ class Foundation(object):
         self.routerpubport = 0
         
         if self.debug > 1:
-            print "Send REGISTER to cif-router (" + cifrouter + ")"
+            print "Send REGISTER to cif-router (" + self.cifrouter + ")"
         
         msg = control_pb2.ControlType()
         msg.version = msg.version # required
@@ -254,7 +254,7 @@ class Foundation(object):
                 print ti + "] eventloop: Got reply: "#, r
             
             if len(r) > 0:
-                msg = r[0]
+                msg = r[1]
                 decoded_msg = control_pb2.ControlType()
                 decoded_msg.ParseFromString(msg)
                 
@@ -293,6 +293,6 @@ class Foundation(object):
                 self.callback_registry_lock.acquire()
                 self.callback_registry[msg.seq] = callback
                 self.callback_registry_lock.release()
-            self.req.send_multipart([msg.SerializeToString()])
+            self.req.send_multipart(['', msg.SerializeToString()])
             
             

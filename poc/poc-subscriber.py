@@ -112,15 +112,21 @@ try:
         msg = msg_pb2.MessageType()
         msg.ParseFromString(subscriber.recv())
         
+        count = 0
         for mt in msg.submissionRequest:
+            count = count + 1
             if mt.baseObjectType == "MAEC_v2":
                 maec = MAEC_v2_pb2.maecPlaceholder()
                 maec.ParseFromString(msg.submissionRequest[0].data)
                 print " Got MAEC_v2: ", maec.msg
+            elif mt.baseObjectType == "RFC5070_IODEF_v1_pb2":
+                iodef = RFC5070_IODEF_v1_pb2.IODEF_DocumentType()
+                iodef.ParseFromString(msg.submissionRequest[0].data)
+                print " Got IODEF: ", iodef
             else:
                 print " Got unimplemented type: " + mt.baseObjectType
 
-
+        print "\nProcessed ", count, " messages"
         
     cf.unregister()
     
