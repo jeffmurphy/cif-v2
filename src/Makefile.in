@@ -3,8 +3,8 @@ XSDFILES=@XSDFILES@
 XSDPROTO=$(XSDFILES:.xsd=.proto)
 XSDTHRIFT=$(XSDFILES:.xsd=.thrift)
 XSD2IDL=@XSD2IDL@
-PROTOFILES=msg.proto feed.proto control.proto $(XSDPROTO)
-THRIFTFILES=msg.thrift feed.thrift control.thrift $(XSDTHRIFT)
+PROTOFILES=msg.proto feed.proto control.proto profile.proto $(XSDPROTO)
+THRIFTFILES=msg.thrift feed.thrift control.thrift profile.thrift $(XSDTHRIFT)
 THRIFT=@THRIFT@
 PROTOC=@PROTOC@
 PERL=@PERL@

@@ -38,7 +38,7 @@ message ContactType
 
 message KeyType {
     optional string uid     = 1;
-    required string key     = 1;
+    required string key     = 2;
     
     enum Key_type {
         // apikeys, security tokens, passwords, etc
