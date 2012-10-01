@@ -1,0 +1,96 @@
+message profile {
+    required ContactType contact    = 1;
+    repeated TagsType tags          = 2;
+    repeated VouchType vouch        = 3;
+}
+
+
+message ContactType
+{
+    optional MLStringType ContactName           = 1;
+    repeated MLStringType Description           = 2;
+    optional PostalAddressType PostalAddress    = 4;
+    repeated ContactMeansType Email             = 5;
+    repeated ContactMeansType Telephone         = 6;
+    optional ContactMeansType Fax               = 7;
+    optional string Timezone                    = 8;
+    repeated ContactType Contact                = 9;
+    
+    // do we need this?
+    enum Contact_type
+    {
+        Contact_type_ext_value      = 1;
+        Contact_type_organization   = 2;
+        Contact_type_person         = 3;
+        Contact_type_member         = 4;
+        Contact_type_partner        = 5;
+    }
+    required Contact_type type                  = 10;
+    required string uuid                        = 11;
+    optional string ext_type                    = 12;
+    
+    // groups the user is tagged with (uuid)             
+    repeated string group                       = 13;
+    
+    // security keys
+    repeated KeyType key                        = 14; 
+}
+
+message KeyType {
+    optional string uid     = 1;
+    required string key     = 1;
+    
+    enum Key_type {
+        // apikeys, security tokens, passwords, etc
+        Key_type_generic    = 1;
+        Key_type_smime      = 2;
+        Key_type_gpg        = 3;
+    }
+    required Key_type type  = 3;
+}
+
+message VouchType {
+    required string voucher         = 1;
+    required string vouchee         = 2;
+    required int32 timestamp          = 3;
+    
+    // taken from the GPG trust model
+    enum Trust_strength {
+        Trust_strenth_complete  = 1;
+        Trust_strength_marginal = 2;
+        Trust_strength_unknown  = 3;
+        Trust_strength_negative = 4;
+    }
+    optional Trust_strength trust   = 4;
+    
+    // personal touch to the vouch
+    optional string attestation     = 5;
+    
+    // optional "i trust this person within the context of group X"
+    optional string context         = 6;
+}
+
+message TagsType {
+    required string tag         = 1;
+    required string  value      = 2;
+    required string timestamp   = 3;
+}
+
+message PostalAddressType
+{
+    optional string meaning = 1;
+    optional string lang = 2;
+    required string content = 3;
+}
+
+message ContactMeansType
+{
+    required string content = 1;
+    optional string meaning = 2;
+}
+
+message MLStringType
+{
+    optional string lang = 1;
+    required string content = 2;
+}
