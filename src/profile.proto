@@ -1,3 +1,5 @@
+package CIF.msg;
+
 message profile {
     required ContactType contact    = 1;
     repeated TagsType tags          = 2;

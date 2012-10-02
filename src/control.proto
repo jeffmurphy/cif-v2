@@ -69,12 +69,14 @@ message ControlType {
     	APIKEY_ADD     = 11;
     	APIKEY_UPDATE  = 12;
     	APIKEY_DEL     = 13;
-    	APIKEY_LIST    = 14;
+    	APIKEY_REVOKE  = 14;
+    	APIKEY_LIST    = 15;
     	
-    	APIKEY_GROUPS_ADD    = 15;
-    	APIKEY_GROUPS_UPDATE = 16;
-    	APIKEY_GROUPS_DEL    = 17;
-    	APIKEY_GROUPS_LIST   = 18;
+    	APIKEY_GROUPS_ADD    = 16;
+    	APIKEY_GROUPS_UPDATE = 17;
+    	APIKEY_GROUPS_DEL    = 18;
+    	APIKEY_GROUPS_REVOKE = 19;
+    	APIKEY_GROUPS_LIST   = 20;
     }
     
     optional float version       = 1 [default = 20120927.00];
