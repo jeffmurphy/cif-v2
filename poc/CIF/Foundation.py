@@ -1,9 +1,6 @@
 import datetime
 import time
 import os
-import msg_pb2
-import control_pb2
-import cifsupport
 import threading
 import zmq
 import sys
@@ -142,8 +139,8 @@ class Foundation(object):
 
         msg.seq = self.md5(msg.SerializeToString())
         
-        self.sendmsg(msg, self.unregisterFinished)
         self.unregister_synchronizer = threading.Semaphore(0)
+        self.sendmsg(msg, self.unregisterFinished)
         self.unregister_synchronizer.acquire() # synchronizer is initialized to 0 so this will block
 
         if self.debug > 2:
@@ -175,21 +172,24 @@ class Foundation(object):
         if self.debug > 2:
             print "\tSending REGISTER: ", msg
         
-        self.sendmsg(msg, self.registerFinished)
         self.register_synchronizer = threading.Semaphore(0)
+        self.sendmsg(msg, self.registerFinished)
         self.register_synchronizer.acquire() # synchronizer is initialized to 0 so this will block
         
     
         if self.debug > 2:
             print "\tGot reply: ", self.register_reply
             
-        self.routerport = self.register_reply.registerResponse.REQport
-        self.routerpubport = self.register_reply.registerResponse.PUBport
+
         if self.register_reply.status == control_pb2.ControlType.SUCCESS:
+            self.routerport = self.register_reply.registerResponse.REQport
+            self.routerpubport = self.register_reply.registerResponse.PUBport
             if self.debug > 2:
                 print "\t\tregistered successfully"
             return (self.routerport, self.routerpubport)
         elif self.register_reply.status == control_pb2.ControlType.DUPLICATE:
+            self.routerport = self.register_reply.registerResponse.REQport
+            self.routerpubport = self.register_reply.registerResponse.PUBport
             if self.debug > 2:
                 print "\t\talready registered?"
             return (self.routerport, self.routerpubport)
@@ -214,8 +214,9 @@ class Foundation(object):
         msg.iPublishRequest.port = int(self.publisherport)
         msg.iPublishRequest.ipaddress = self.myip
         msg.seq = self.md5(msg.SerializeToString())
-        self.sendmsg(msg, self.ipublishFinished)
+
         self.ipublish_synchronizer = threading.Semaphore(0)
+        self.sendmsg(msg, self.ipublishFinished)
         self.ipublish_synchronizer.acquire() # synchronizer is initialized to 0 so this will block
         if self.ipublish_reply.status == control_pb2.ControlType.SUCCESS:
             # TODO cif-router should connect to our PUB socket (zmq won't tell us)
