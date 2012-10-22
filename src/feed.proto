@@ -27,7 +27,7 @@ message FeedType {
 	// see https://github.com/collectiveintel/google-protocolbuffers-perl/issues/1
 	
 	// the version field SHALL always be the first field in the message "= 1"
-    optional float version      = 1 [default = 20120531];
+    optional double version      = 1 [default = 20120531];
 
     // guid should evolve to the ContactType from IODEF
     optional string guid                    = 2;

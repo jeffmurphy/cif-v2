@@ -50,7 +50,7 @@ message MessageType {
 	// see https://github.com/collectiveintel/google-protocolbuffers-perl/issues/1
 	
 	// the version field SHALL always be the first field in the message "= 1"
-    optional float version      = 1 [default = 20120927];
+    optional double version      = 1 [default = 20120927];
 
     optional bytes  seq         = 2; // used to match queries with replies. must be preserved in replies
 

@@ -440,7 +440,7 @@ message Alert
 message IDMEF_Message
 {
 	// version SHALL be a float and always the first field
-	optional float version = 1 [default = 20120628];
+	optional double version = 1 [default = 20120628];
 	required Alert _Alert = 2;
 	required Heartbeat _Heartbeat = 3;
 }

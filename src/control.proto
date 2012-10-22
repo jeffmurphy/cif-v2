@@ -79,7 +79,7 @@ message ControlType {
     	APIKEY_GROUPS_LIST   = 20;
     }
     
-    optional float version       = 1 [default = 20120927.00];
+    optional double version       = 1 [default = 20120927.00];
     optional bytes seq           = 2; // used to match commands to replies, must be preserved in replies 
     optional string dst          = 3;
     optional string src          = 4;

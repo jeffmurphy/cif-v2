@@ -5,7 +5,7 @@ package CIF.MAEC;
 
 message maecPlaceholder
 {
-	optional float version = 1 [ default = 20120628 ];
+	optional double version = 1 [ default = 20120628 ];
    	optional string msg = 2;
    	optional int32 i = 3;
 }
