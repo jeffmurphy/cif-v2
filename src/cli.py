@@ -107,8 +107,14 @@ for o, a in opts:
 myip = socket.gethostbyname(socket.gethostname()) # has caveats
 
 global cf
-cf = Foundation()
 apikey = "1234567890abcdef"
+
+cf = Foundation({'apikey': apikey, 
+                 'myip': myip, 
+                 'cifrouter': cifrouter,
+                 'controlport': controlport,
+                 'routerid': "cif-router",
+                 'myid': myid})
 
 cf.setdebug(debug)
 
@@ -116,8 +122,8 @@ try:
     if debug > 1:
         print "Register with " + cifrouter + " (req->rep)"
         
-    cf.ctrlsocket(myip, controlport, myid, cifrouter)
-    (routerport, routerpubport) = cf.register(apikey, myip, myid, cifrouter)
+    cf.ctrlsocket()
+    (routerport, routerpubport) = cf.register()
     routerhname = cifrouter.split(':')
     
     time.sleep(1) # wait for router to connect, sort of lame but see this a lot in zmq code
@@ -145,8 +151,8 @@ try:
             else:
                 help()
         
-    cf.unregister(apikey, cifrouter, myid)
+    cf.unregister()
     
 except KeyboardInterrupt:
-    cf.ctrlc(apikey, cifrouter, myid)
+    cf.ctrlc()
 
