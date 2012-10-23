@@ -21,10 +21,12 @@ use Carp qw(cluck confess);
 use Sys::Hostname;
 use Socket qw(inet_ntoa);
 
-
+use IPC::Shareable (':lock');
+use Devel::Pointer;
 
 use Digest::MD5;
-                  
+use Data::Dumper;
+     
 =pod
 
 =head1 Overview
@@ -47,7 +49,7 @@ sub new {
 
 =pod
 
-initialize( { apikey => , myip => , cifrouter => , controlport => , publisherport => , myid => , routerid => })
+initialize( { apikey => , myip => , cifrouter => , controlport => , publisherport => , myid => , routerid =>   })
 
 private method called by new()
 
@@ -72,11 +74,20 @@ sub initialize {
 	$self->{debug} = \$debug;
 	
 	# context is shared, but does not require locking per ZMQ doc
-	my $context :shared = new ZeroMQ::Context();
-	$self->{context} = \$context; 
 	
-	my $callback_registry :shared = {};
-	$self->{callback_registry} = \$callback_registry;
+	#my $context :shared =  shared_clone(zmq_init(10));#shared_clone(new ZeroMQ::Context());
+	#my $context;
+	#my $ctxhandle = tie $context,   'IPC::Shareable', 'zmqctx',  { create => 1 };
+	#$context = zmq_init(10);
+
+	my $_ctx = zmq_init(10);
+	$self->{_ctx} = \$_ctx; # keep ref count >0
+	my $context :shared = address_of($_ctx);
+		
+	$self->{context} = $context; 
+	
+	my %callback_registry :shared = ();
+	$self->{callback_registry} = \%callback_registry;
 	
 	# access to these must be lock()ed
 	
@@ -89,8 +100,9 @@ sub initialize {
 	my $rep :shared = undef;
 	$self->{rep} = \$rep;
 	
-	my $req :shared = undef;
-	$self->{req} = \$req;
+	my $reqlock :shared = 1;
+	$self->{reqlock} = \$reqlock;
+	$self->{req} = undef;
 	
         # we want the register, unregister and ipublish commands to be
         # synchronous. the following (semaphores) helps achieve that
@@ -145,17 +157,28 @@ sub getdebug {
 sub requestsocket {
 	my $self = shift;
     
-    print "Connecting to ". $self->{cifrouter} . " as " . $self->{myid} ."\n" if $self->getdebug();
-    lock(${$self->{req}});
+    print "requestsocket: Connecting to ". $self->{cifrouter} . " as " . $self->{myid} ."\n" if $self->getdebug();
+
+    lock(${$self->{reqlock}});
+
+    my $ctx = deref($self->{context});    
     
-	${$self->{req}} = zmq_socket($self->{context}, ZMQ_DEALER);
-	my $myname = $self->{myip} . ":" . $self->{controlport} . "|" . $self->{myid};
-	zmq_setsockopt(${$self->{req}}, ZMQ_IDENTITY, $myname);
-	zmq_connect(${$self->{req}}, "tcp://" . $self->{cifrouter});
+    my $req = zmq_socket($ctx, ZMQ_DEALER);
+	$self->{req} = address_of($req);
+	$self->{_req} = \$req; # refcount >0
 	
-	$self->{evthread} = threads->create(\$self->eventloop());
+	my $myname = $self->{myip} . ":" . $self->{controlport} . "|" . $self->{myid};
+	zmq_setsockopt($req, ZMQ_IDENTITY, $myname);
+	zmq_connect($req, "tcp://" . $self->{cifrouter});
+	
+	print "\trequestsocket: Starting event handler thread\n" if $self->getdebug();
+	
+	my $ev = sub { $self->eventloop(@_) };
+	print "here\n";
+	$self->{evthread} = threads->create($ev);
 	$self->{evthread}->detach();
-	return ${$self->{req}};
+	
+	print "\trequestsocket: finished\n" if $self->getdebug();
 }
     
 sub subscribersocket {
@@ -166,7 +189,7 @@ sub subscribersocket {
 	
 	lock (${$self->{subscriber}});
 	
-	${$self->{subscriber}} = zmq_socket($self->{context}, ZMQ_SUB);
+	${$self->{subscriber}} = zmq_socket(${$self->{context}}, ZMQ_SUB);
 	zmq_connect(${$self->{subscriber}}, $remote_publisher);
 	zmq_setsockopt(${$self->{subscriber}}, ZMQ_SUBSCRIBE, '');
 	return ${$self->{subscriber}};
@@ -177,7 +200,7 @@ sub publishersocket {
 	
 	lock (${$self->{publisher}});
 	
-	${$self->{publisher}} = zmq_socket($self->{context}, ZMQ_PUB);
+	${$self->{publisher}} = zmq_socket(${$self->{context}}, ZMQ_PUB);
 	zmq_bind(${$self->{publisher}}, "tcp://*:" . $self->{publisherport});
 	return ${$self->{publisher}};
 }
@@ -185,6 +208,7 @@ sub publishersocket {
 sub registerFinished {
 	my $self = shift;
 	my $decoded_message = shift;
+	print "registerFinished: got a reply. $decoded_message\n" if $self->{debug};
 	${$self->{register_synchronizer}}->up();
 }
 
@@ -229,16 +253,19 @@ sub unregister {
 sub send_multipart {
 	my $self = shift;
 	my $parts = shift;
+	
 	die "invalid argument: parts is not an array ref" unless ref($parts) eq "ARRAY";
+	
 	my $rv = 0;
 
-	lock(${$self->{req}});
+	lock(${$self->{reqlock}});
+	my $req = deref($self->{req});
 	
 	for (my $i = 0; $i < $#$parts ; $i++) {
-		$rv = zmq_send(${$self->{req}}, $parts->[$i], ZMQ_SNDMORE);
+		$rv = zmq_send($req, $parts->[$i], ZMQ_SNDMORE);
 		die "zmq_send failed with $rv" if ($rv == -1);
 	}
-	$rv = zmq_send(${$self->{req}}, $parts->[$#$parts]);
+	$rv = zmq_send($req, $parts->[$#$parts]);
 	die "zmq_send failed with $rv" if ($rv == -1);
 }
 
@@ -248,12 +275,16 @@ sub recv_multipart {
 	my $done = 0;
 	my $rv = 0;
 
-	lock (${$self->{req}});
-	
-	while($rv = zmq_recv(${$self->{req}})) {
+	lock (${$self->{reqlock}});
+	my $req = deref($self->{req});
+	print "recv_multipart: ...\n";
+	my $hasmore = 1;
+	while($hasmore) {
+			$rv = zmq_recv($req);
+			print "\tmore\n";
 			push @$parts, zmq_msg_data($rv);
-			#my $hasmore = zmq_getsockopt($self->{req}, ZMQ_RCVMORE);
-			#print "hasmore: $hasmore\n";sleep(1);
+			$hasmore = zmq_getsockopt($req, ZMQ_RCVMORE);
+			print "hasmore: $hasmore\n";
 	}
 	return $parts;
 }
@@ -261,7 +292,7 @@ sub recv_multipart {
 sub register {
 	my $self = shift;
 	
-	print "Registering with cif-router\n" if $self->getdebug();
+	print "register: Registering with cif-router\n" if $self->getdebug();
 	
 #	 msg = control_pb2.ControlType()
 #    msg.version = msg.version # required
@@ -271,7 +302,7 @@ sub register {
 #    msg.dst = 'cif-router'
 #    msg.src = myid
     
-    my $cm = CIF::Msg::ControlType->encode({
+    my $cm = CIF::Msg::ControlType->new({
 		type => CIF::Msg::ControlType::MsgType::COMMAND(),
 		command => CIF::Msg::ControlType::CommandType::REGISTER(),
 		src => $self->{myid},
@@ -280,21 +311,23 @@ sub register {
 		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
 	});
     
-    print "Sending REGISTER command\n" if $self->getdebug();
+    print "\tregister: Sending REGISTER command\n" if $self->getdebug();
 
     $cm->{seq} = $self->md5($cm->encode());
     
     ${$self->{register_synchronizer}} = Thread::Semaphore->new(0);
-	$self->sendmsg($cm, \$self->unregisterFinished);
+    my $cb = sub { $self->registerFinished(@_); };
+    $cb = 'sub { $self->registerFinished(@_); }';
+	$self->sendmsg($cm, $cb);
 
-	print "Waiting for reply\n" if $self->getdebug();
+	print "\tregister: Waiting for reply\n" if $self->getdebug();
 
 	${$self->{register_synchronizer}}->down();
 
 	$cm = $self->{register_reply};	
 
 	
-	print "got reply: ". Dumper($cm). "\n" if $self->getdebug();
+	print "\tregister: got reply: ". Dumper($cm). "\n" if $self->getdebug();
 	
 	if ($cm->get_status == CIF::Msg::ControlType::StatusType::DUPLICATE()) {
 		cluck("Already registered with cif-router?") if $self->getdebug();
@@ -359,7 +392,7 @@ sub ctrlsocket {
 	my $self = shift;
 	print "Creating control socket on: " . $self->{controlport} . "\n" if $self->getdebug();
 	lock (${$self->{rep}});
-	${$self->{rep}} = zmq_socket($self->{context}, ZMQ_REP);
+	${$self->{rep}} = zmq_socket(${$self->{context}}, ZMQ_REP);
 	zmq_bind(${$self->{rep}}, "tcp://*:" . $self->{controlport});
 }
 
@@ -376,7 +409,7 @@ sub ctrlsocket {
 sub eventloop {
 	my $self = shift;
 	
-	while(1) {
+	while (1) {
 		my $ti = threads->tid();
 		print "$ti] eventloop: Waiting for a reply\n" if $self->getdebug() > 2;
 		my $r = $self->recv_multipart();
@@ -397,6 +430,11 @@ sub eventloop {
 					print "$ti] eventloop: Reply is bad (unexpected, no callback available). Discarding.\n" if $self->getdebug() > 2;
 				}
 			}
+			else {
+				print "$ti] eventloop: message has invalid version\n" if $self->getdebug() > 2;
+				my $embv = CIF::Msg::Support::getOurVersion("Control");
+				print "$ti] ", $decoded_message->{version}, " =? $embv\n";				
+			}
 		}
 	}
 }
@@ -415,13 +453,28 @@ sub sendmsg {
 	my $msg = shift;
 	my $callback = shift;
 	
-	if (defined(${$self->{req}}) && defined($msg)) {
-		if (defined($callback)) {
-			lock(${$self->{callback_registry}});
-			my $msgid = $msg->{seq};
-			${$self->{callback_registry}}->{$msgid} = $callback;
+	
+	if (defined($self->{req})) {
+		my $req = deref($self->{req});
+		if (defined($msg)) {
+			#if (ref($callback) eq "CODE") {
+				lock($self->{callback_registry});
+				my $msgid = $msg->{seq};
+				print "x $callback // ", $self->{callback_registry}, "\n";
+				my $_cb :shared = shared_clone($callback);
+				$self->{callback_registry}->{$msgid} = $_cb;
+			#} else {
+			#	warn "sendmsg: callback is not a CODE ref";
+			#}
+			$self->send_multipart(['', $msg->encode()]);
+			return;
+		} 
+		else {
+			warn "No message to send?";
 		}
-		$self->send_multipart($msg->encode());
+	}
+	else {
+		warn "Not connected. Call ->requestsocket() first.";
 	}
 }
 
