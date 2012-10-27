@@ -44,13 +44,14 @@ import pprint
 import struct
 
 sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
-#sys.path.append('/media/psf/Home/git/cif-protocol/src/pb-python/gen-py')
 import msg_pb2
 import feed_pb2
 import RFC5070_IODEF_v1_pb2
 import MAEC_v2_pb2
 import control_pb2
 import cifsupport
+
+sys.path.append('../../libcif/lib')
 
 from CIF.RouterStats import *
 from CIF.CtrlCommands.Clients import *

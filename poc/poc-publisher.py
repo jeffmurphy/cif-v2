@@ -52,7 +52,7 @@ import MAEC_v2_pb2
 import control_pb2
 import cifsupport
 
-sys.path.append('../../cif-router/poc')
+sys.path.append('../../libcif/lib')
 from CIF.CtrlCommands.Clients import *
 from CIF.Foundation import Foundation
 
