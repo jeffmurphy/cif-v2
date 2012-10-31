@@ -311,6 +311,7 @@ sub preprocess_routine {
     warn 'parsing...' if($::debug);
     my ($err,$recs) = $self->parse();
     return($err) if($err);
+    debug(Dumper($recs)) if($::debug > 10);
     
     return unless($#{$recs} > -1);
     
