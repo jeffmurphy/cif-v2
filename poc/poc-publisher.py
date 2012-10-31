@@ -82,7 +82,7 @@ cifrouter = "sdev.nickelsoft.com:5555"
 sleeptime = 1.0
 count = -1
 myid = "poc-publisher"
-apikey = "12345abcdef"
+apikey = "c31ebb50-18df-4f47-8ec9-3f7ff778114a"
 
 for o, a in opts:
     if o == "-c":

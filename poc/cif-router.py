@@ -58,7 +58,7 @@ from CIF.CtrlCommands.Clients import *
 
 myname = "cif-router"
 
-def register(clientname):
+def register(clientname, apikey):
     # zmq doesnt have a disconnect, so if we xsub.connect() multiple times
     # to the same client, we'll start recving duplicates of that clients
     # messages. to avoid this, we track who we've connected to and if we
@@ -124,8 +124,10 @@ def myrelay(pubport):
         xpub.send(m)
     
 def usage():
-    print "cif-router [-r routerport] [-p pubport] [-m myid] [-h]"
+    print "cif-router [-r routerport] [-p pubport] [-m myid] [-dn dbname] [-dk dbkey] [-h]"
     print "   routerport = 5555, pubport = 5556, myid = cif-router"
+    print "   dbkey = a8fd97c3-9f8b-477b-b45b-ba06719a0088"
+    print "   dbname = cif-db"
         
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'p:r:m:h')
@@ -144,6 +146,8 @@ publishers = {}
 routerport = 5555
 publisherport = 5556
 myid = "cif-router"
+dbkey = 'a8fd97c3-9f8b-477b-b45b-ba06719a0088'
+dbname = 'cif-db'
 
 for o, a in opts:
     if o == "-r":
@@ -152,6 +156,10 @@ for o, a in opts:
         publisherport = a
     elif o == "-m":
         myid = a
+    elif o == "-dk":
+        dbkey = a
+    elif o == "-dn":
+        dbname = "cif-db"
     elif o == "-h":
         usage()
         sys.exit(2)
@@ -172,6 +180,8 @@ thread.start()
 print "Entering event loop"
 
 try:
+    open_for_business = False
+    
     while True:
         print "[up " + str(int(mystats.getuptime())) + "s]: Get incoming message"
         rawmsg = socket.recv_multipart()
@@ -202,55 +212,92 @@ try:
                     msgcommand = msg.command
                     msgid = msg.seq
                     
-                    if msgto == myname and msg.type == control_pb2.ControlType.COMMAND:
-                        print "COMMAND for me: ", msgcommand
-                        
-                        mystats.setcontrols(1, msgcommand)
-                        
-                        if msgcommand == control_pb2.ControlType.REGISTER:
-                              print "REGISTER from: " + msgfrom
-                              rv = register(msgfrom)
-                              msg.status = rv
-                              msg.type = control_pb2.ControlType.REPLY
-                              msg.seq = msgid
-                              if rv == control_pb2.ControlType.SUCCESS:
-                                  msg.registerResponse.REQport = routerport
-                                  msg.registerResponse.PUBport = publisherport
-                                  print " Registered successfully. Sending reply."
-                              else:
-                                  print " Failed to register. Sending reply."
-                              socket.send_multipart([msgreallyfrom, '', msg.SerializeToString()])
-                                          
-                        elif msgcommand == control_pb2.ControlType.UNREGISTER:
-                            print "UNREGISTER from: " + msgfrom
-                            rv = unregister(msgfrom)
-                            msg.status = rv
-                            msg.seq = msgid
-                            socket.send_multipart([ msgreallyfrom, '', msg.SerializeToString()])
-                        
-                        elif msgcommand == control_pb2.ControlType.LISTCLIENTS:
-                             print "LIST-CLIENTS for: " + msgfrom
-                             rv = list_clients()
-                             msg.status = msg.status | control_pb2.ControlType.SUCCESS
-                             msg.seq = msgid
-                             #m2 = control_pb2.ControlType()
-                             #m2.listClientsResponse.client.append(rv.client)
-                             #m2.listClientsResponse.connectTimestamp.append(rv.connectTimestamp)
-                             
-                             msg.listClientsResponse.client.extend(rv.client)
-                             msg.listClientsResponse.connectTimestamp.extend(rv.connectTimestamp)
-                             
-                             #msg.listClientsReponse.client = rv.client[:]
-                             #msg.listClientsResponse.connectTimestamp = rv.connectTimestamp[:]
-                             socket.send_multipart( [ msgreallyfrom, '', msg.SerializeToString() ] )
-                             
-                        elif msgcommand == control_pb2.ControlType.IPUBLISH:
-                             print "IPUBLISH from: " + msgfrom
-                             rv = dosubscribe(msg)
-                             msg.status = rv
-                             socket.send_multipart( [msgreallyfrom, '', msg.SerializeToString()] )
+                    if msgfrom != '' and msg.apikey != '':
+                        if msgto == myname and msg.type == control_pb2.ControlType.COMMAND:
+                            print "COMMAND for me: ", msgcommand
+                            
+                            mystats.setcontrols(1, msgcommand)
+                            
+                            """
+                            For REGISTER:
+                                We allow only the db to register with us while we are not
+                                open_for_business. Once the DB registers, we are open_for_business
+                                since we can then start validating apikeys. Until that time, we can
+                                only validate the dbkey that is specified on the command line when
+                                you launch this program.
+                            """
+                            if msgcommand == control_pb2.ControlType.REGISTER:
+                                  print "REGISTER from: " + msgfrom
+                                  
+                                  msg.status = control_pb2.ControlType.FAILED
+                                  msg.type = control_pb2.ControlType.REPLY
+                                  msg.seq = msgid
+                                  
+                                  if msgfrom == dbname and msg.apikey == dbkey:
+                                      rv = register(msgfrom, None)
+                                      msg.status = control_pb2.ControlType.SUCCESS
+                                      msg.registerResponse.REQport = routerport
+                                      msg.registerResponse.PUBport = publisherport
+                                      open_for_business = True
+                                      print " DB has connected successfully. Sending reply."
+                                      
+                                  elif open_for_business == True:
+                                      rv = register(msgfrom, msg.apikey)
+                                      msg.registerResponse.REQport = routerport
+                                      msg.registerResponse.PUBport = publisherport
+                                      print " Registered successfully. Sending reply."
+    
+                                  else:
+                                      print " Not open_for_business yet. Go away."
+    
+                                  socket.send_multipart([msgreallyfrom, '', msg.SerializeToString()])
+                                              
+                            elif msgcommand == control_pb2.ControlType.UNREGISTER:
+                                """
+                                If the database unregisters, then we are not open_for_business any more.
+                                """
+                                print "UNREGISTER from: " + msgfrom
+                                if open_for_business == True:
+                                    if msgfrom == dbname and msg.apikey == dbkey:
+                                        open_for_business = False
+                                        rv = unregister(msgfrom)
+                                        msg.status = rv
+                                        msg.seq = msgid
+                                    else:
+                                        # TODO check apikey with db
+                                        rv = unregister(msgfrom)
+                                        msg.status = rv
+                                        msg.seq = msgid
+                                        
+                                    socket.send_multipart([ msgreallyfrom, '', msg.SerializeToString()])
+                            
+                            elif msgcommand == control_pb2.ControlType.LISTCLIENTS:
+                                 print "LIST-CLIENTS for: " + msgfrom
+                                 if open_for_business == True:
+                                     rv = list_clients()
+                                     msg.status = msg.status | control_pb2.ControlType.SUCCESS
+                                     msg.seq = msgid
+                                     #m2 = control_pb2.ControlType()
+                                     #m2.listClientsResponse.client.append(rv.client)
+                                     #m2.listClientsResponse.connectTimestamp.append(rv.connectTimestamp)
+                                     
+                                     msg.listClientsResponse.client.extend(rv.client)
+                                     msg.listClientsResponse.connectTimestamp.extend(rv.connectTimestamp)
+                                     
+                                     #msg.listClientsReponse.client = rv.client[:]
+                                     #msg.listClientsResponse.connectTimestamp = rv.connectTimestamp[:]
+                                     socket.send_multipart( [ msgreallyfrom, '', msg.SerializeToString() ] )
+                                 
+                            elif msgcommand == control_pb2.ControlType.IPUBLISH:
+                                 print "IPUBLISH from: " + msgfrom
+                                 if open_for_business == True:
+                                     rv = dosubscribe(msg)
+                                     msg.status = rv
+                                     socket.send_multipart( [msgreallyfrom, '', msg.SerializeToString()] )
+                        else:
+                            print "COMMAND for someone else: cmd=", msgcommand, "src=", msgfrom, " dst=", msgto
                     else:
-                        print "COMMAND for someone else: cmd=", msgcommand, "src=", msgfrom, " dst=", msgto
+                        print "msgfrom and/or msg.apikey is empty"
                         
 except KeyboardInterrupt:
     print "Shut down."

@@ -87,7 +87,7 @@ for o, a in opts:
 
 
 myip = socket.gethostbyname(socket.gethostname()) # has caveats
-apikey = "1234567890abcdef"
+apikey = "c31ebb50-18df-4f47-8ec9-3f7ff778114a"
 
 global cf
 cf = Foundation({'apikey' : apikey,
