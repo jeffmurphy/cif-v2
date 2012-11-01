@@ -73,8 +73,18 @@ def listClientsFinished(msg):
         if debug > 2:
             print "\t\tlist clients failed. " + msg.status
 
+def ping(myid, apikey, dst):
+    print "Sending ping to " + dst
+    c = Clients.makecontrolmsg(myid, dst, apikey)
+    c.command = control_pb2.ControlType.PING
+    cf.sendmsg(c, pingFinished)
 
-          
+def pingFinished(msg):
+    if msg.type == control_pb2.ControlType.REPLY and msg.command == control_pb2.ControlType.PING and msg.status == control_pb2.ControlType.SUCCESS:
+        print "Got a reply to my ping"
+    else:
+        print "Got a reply back to my ping, but it doesn't look right: ", msg
+
 def help():
     print "commands: clients, debug #, help, exit"
 
@@ -151,6 +161,9 @@ try:
                 
             elif parts[0] == "clients":
                 listClients(myid, apikey)
+                
+            elif parts[0] == "ping":
+                ping(myid, apikey, parts[1])
                 
             else:
                 help()
