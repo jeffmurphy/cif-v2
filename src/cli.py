@@ -50,14 +50,14 @@ from CIF.Foundation import Foundation
 
 def usage():
     print "\
-    # cli.py [-c 5657] [-r cif-router:5555] [-m name]\n\
+    # cli.py [-c 5657] [-r cif-router:5555] [-m name] [-a apikey] [-D 0-9]\n\
     #     -c  control port (REQ - for inbound messages)\n\
     #     -r  cif-router hostname:port\n\
     #     -m  my name\n"
 
 
-def listClients(myid):
-    cf.sendmsg(Clients.makecontrolmsg(myid, 'cif-router'), listClientsFinished)
+def listClients(myid, apikey):
+    cf.sendmsg(Clients.makecontrolmsg(myid, 'cif-router', apikey), listClientsFinished)
 
 def listClientsFinished(msg):
     #print "\tReply contains ", str(len(msg.listClientsResponse.client)), " entries."
@@ -79,10 +79,10 @@ def help():
     print "commands: clients, debug #, help, exit"
 
 global debug
-debug = 5
+debug = 2
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'c:r:m:h')
+    opts, args = getopt.getopt(sys.argv[1:], 'c:r:m:D:k:h')
 except getopt.GetoptError, err:
     print str(err)
     usage()
@@ -91,6 +91,7 @@ except getopt.GetoptError, err:
 controlport = "5657"
 cifrouter = "sdev.nickelsoft.com:5555"
 myid = "cli(%s)" % (os.getlogin()) #, os.getpid())
+apikey = "1234567890abcdef"
 
 for o, a in opts:
     if o == "-c":
@@ -102,12 +103,15 @@ for o, a in opts:
     elif o == "-h":
         usage()
         sys.exit(2)
+    elif o == "-D":
+        debug = a
+    elif o == "-k":
+        apikey = a
 
 
 myip = socket.gethostbyname(socket.gethostname()) # has caveats
 
 global cf
-apikey = "1234567890abcdef"
 
 cf = Foundation({'apikey': apikey, 
                  'myip': myip, 
@@ -146,7 +150,7 @@ try:
                 debug = int(parts[1])
                 
             elif parts[0] == "clients":
-                listClients(myid)
+                listClients(myid, apikey)
                 
             else:
                 help()
