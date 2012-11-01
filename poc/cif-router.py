@@ -58,26 +58,17 @@ from CIF.CtrlCommands.Clients import *
 
 myname = "cif-router"
 
-def register(clientname, apikey):
-    # zmq doesnt have a disconnect, so if we xsub.connect() multiple times
-    # to the same client, we'll start recving duplicates of that clients
-    # messages. to avoid this, we track who we've connected to and if we
-    # see the same client more than once, we dont call connect() again.
-    
-    #if clientname in clients :
-    #    print "\talready registered"
-    #    return 'ALREADY-REGISTERED'
-    
+def register(clientname, zmqid, apikey):
     if apikey != None:
         if validate_apikey(apikey) == control_pb2.ControlType.SUCCESS:
-            clients.register(clientname)
+            clients.register(clientname, zmqid)
             return control_pb2.ControlType.SUCCESS
         return control_pb2.ControlType.FAILED
     else:
         # the only place we call with apikey=None is when cif-db connects
         # because the apikey is specified on the command line (and validated
         # in the main routine)
-        clients.register(clientname)
+        clients.register(clientname, zmqid)
         return control_pb2.ControlType.SUCCESS
     return control_pb2.ControlType.FAILED
 
@@ -114,6 +105,19 @@ def validate_apikey(apikey):
     This routine just determines "are you allowed to connect to us?"
     """
     if apikey != None:
+        db_zmqid = clients.getzmqidentity("cif-db")
+        print "validating apikey for ", apikey, " db is ", db_zmqid
+        msg = control_pb2.ControlType()
+        msg.version = msg.version # required
+        msg.type = control_pb2.ControlType.COMMAND
+        msg.command = control_pb2.ControlType.APIKEY_LIST
+        msg.dst = "cif-db"
+        msg.src = "cif-router"
+        msg.apikey = apikey
+        _md5 = hashlib.md5()
+        _md5.update(msg.SerializeToString())
+        msg.seq = _md5.digest()
+        socket.send_multipart([ db_zmqid, '', msg.SerializeToString()])
         return control_pb2.ControlType.SUCCESS
     return control_pb2.ControlType.FAILED
 
@@ -187,6 +191,7 @@ for o, a in opts:
         sys.exit(2)
         
 print "Create ROUTER socket on " + str(routerport)
+global socket
 socket = context.socket(zmq.ROUTER)
 socket.bind("tcp://*:" + str(routerport))
 socket.setsockopt(zmq.IDENTITY, myname)
@@ -217,7 +222,7 @@ try:
             print "Received message isn't a protobuf: ", e
             mystats.setbad()
         else:
-            msgreallyfrom = rawmsg[0] # save the ZMQ identity of who sent us this message
+            from_zmqid = rawmsg[0] # save the ZMQ identity of who sent us this message
             
             #print "Got msg: ", msg
     
@@ -256,7 +261,7 @@ try:
                                   msg.seq = msgid
                                   
                                   if msgfrom == dbname and msg.apikey == dbkey:
-                                      rv = register(msgfrom, None)
+                                      rv = register(msgfrom, from_zmqid, None)
                                       msg.status = control_pb2.ControlType.SUCCESS
                                       msg.registerResponse.REQport = routerport
                                       msg.registerResponse.PUBport = publisherport
@@ -264,7 +269,7 @@ try:
                                       print " DB has connected successfully. Sending reply."
                                       
                                   elif open_for_business == True:
-                                      rv = register(msgfrom, msg.apikey)
+                                      rv = register(msgfrom, from_zmqid, msg.apikey)
                                       msg.registerResponse.REQport = routerport
                                       msg.registerResponse.PUBport = publisherport
                                       msg.status = rv
@@ -275,7 +280,7 @@ try:
                                   else:
                                       print " Not open_for_business yet. Go away."
     
-                                  socket.send_multipart([msgreallyfrom, '', msg.SerializeToString()])
+                                  socket.send_multipart([from_zmqid, '', msg.SerializeToString()])
                                               
                             elif msgcommand == control_pb2.ControlType.UNREGISTER:
                                 """
@@ -294,7 +299,7 @@ try:
                                         msg.status = rv
                                         msg.seq = msgid
                                         
-                                    socket.send_multipart([ msgreallyfrom, '', msg.SerializeToString()])
+                                    socket.send_multipart([ from_zmqid, '', msg.SerializeToString()])
                             
                             elif msgcommand == control_pb2.ControlType.LISTCLIENTS:
                                  print "LIST-CLIENTS for: " + msgfrom
@@ -309,16 +314,21 @@ try:
                                          msg.listClientsResponse.client.extend(rv.client)
                                          msg.listClientsResponse.connectTimestamp.extend(rv.connectTimestamp)
                                      
-                                     socket.send_multipart( [ msgreallyfrom, '', msg.SerializeToString() ] )
+                                     socket.send_multipart( [ from_zmqid, '', msg.SerializeToString() ] )
                                  
                             elif msgcommand == control_pb2.ControlType.IPUBLISH:
                                  print "IPUBLISH from: " + msgfrom
                                  if open_for_business == True:
                                      rv = dosubscribe(msg)
                                      msg.status = rv
-                                     socket.send_multipart( [msgreallyfrom, '', msg.SerializeToString()] )
+                                     socket.send_multipart( [from_zmqid, '', msg.SerializeToString()] )
                         else:
                             print "COMMAND for someone else: cmd=", msgcommand, "src=", msgfrom, " dst=", msgto
+                            msgto_zmqid = clients.getzmqidentity(msgto)
+                            if msgto_zmqid != None:
+                                socket.send_multipart([msgto_zmqid, '', msg.SerializeToString()])
+                            else:
+                                print "Unknown message destination: ", msgto
                     else:
                         print "msgfrom and/or msg.apikey is empty"
                         
