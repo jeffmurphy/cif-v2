@@ -69,7 +69,6 @@ def register(clientname, apikey):
     #    return 'ALREADY-REGISTERED'
     
     if apikey != None:
-        print "1 " + apikey
         if validate_apikey(apikey) == control_pb2.ControlType.SUCCESS:
             clients.register(clientname)
             return control_pb2.ControlType.SUCCESS
@@ -78,16 +77,16 @@ def register(clientname, apikey):
         # the only place we call with apikey=None is when cif-db connects
         # because the apikey is specified on the command line (and validated
         # in the main routine)
-        print "2"
         clients.register(clientname)
         return control_pb2.ControlType.SUCCESS
-    print "3"
     return control_pb2.ControlType.FAILED
 
 def dosubscribe(m):
     if m.src in publishers :
-        print "we've seen this client before. re-using old connection."
+        print "dosubscribe: we've seen this client before. re-using old connection."
+        return validate_apikey(m.apikey)
     elif validate_apikey(m.apikey) == control_pb2.ControlType.SUCCESS:
+        print "dosubscribe: New publisher to connect to " + msg.src
         publishers[m.src] = time.time()
         addr = m.iPublishRequest.ipaddress
         port = m.iPublishRequest.port
