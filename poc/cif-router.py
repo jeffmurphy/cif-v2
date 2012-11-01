@@ -68,32 +68,55 @@ def register(clientname, apikey):
     #    print "\talready registered"
     #    return 'ALREADY-REGISTERED'
     
-
-    clients.register(clientname)
-    return control_pb2.ControlType.SUCCESS
+    if apikey != None:
+        print "1 " + apikey
+        if validate_apikey(apikey) == control_pb2.ControlType.SUCCESS:
+            clients.register(clientname)
+            return control_pb2.ControlType.SUCCESS
+        return control_pb2.ControlType.FAILED
+    else:
+        # the only place we call with apikey=None is when cif-db connects
+        # because the apikey is specified on the command line (and validated
+        # in the main routine)
+        print "2"
+        clients.register(clientname)
+        return control_pb2.ControlType.SUCCESS
+    print "3"
+    return control_pb2.ControlType.FAILED
 
 def dosubscribe(m):
     if m.src in publishers :
         print "we've seen this client before. re-using old connection."
-    else:
+    elif validate_apikey(m.apikey) == control_pb2.ControlType.SUCCESS:
         publishers[m.src] = time.time()
         addr = m.iPublishRequest.ipaddress
         port = m.iPublishRequest.port
         print "dosubscribe: connect our xsub -> xpub on " + addr + ":" + str(port)
         xsub.connect("tcp://" + addr + ":" + str(port))
-    return control_pb2.ControlType.SUCCESS
+        return control_pb2.ControlType.SUCCESS
+    return control_pb2.ControlType.FAILED
 
-def unregister(clientname):
-    if clients.isregistered(clientname):
+def unregister(clientname, apikey):
+    if validate_apikey(apikey) == control_pb2.ControlType.SUCCESS and clients.isregistered(clientname):
         print "\tunregistered"
         clients.unregister(clientname)
         return control_pb2.ControlType.SUCCESS
-    print "\tclient unknown"
+    print "\tclient unknown or unauthorized"
     return control_pb2.ControlType.FAILED
 
-def list_clients():
-    return clients.asmessage()
+def list_clients(apikey):
+    if validate_apikey(apikey) == control_pb2.ControlType.SUCCESS:
+        return clients.asmessage()
+    return None
 
+def validate_apikey(apikey):
+    """
+    Make sure the given apikey exists, is not revoked, is not expired.
+    This routine just determines "are you allowed to connect to us?"
+    """
+    if apikey != None:
+        return control_pb2.ControlType.SUCCESS
+    return control_pb2.ControlType.FAILED
 
 def myrelay(pubport):
     relaycount = 0
@@ -159,7 +182,7 @@ for o, a in opts:
     elif o == "-dk":
         dbkey = a
     elif o == "-dn":
-        dbname = "cif-db"
+        dbname = a
     elif o == "-h":
         usage()
         sys.exit(2)
@@ -185,7 +208,7 @@ try:
     while True:
         print "[up " + str(int(mystats.getuptime())) + "s]: Get incoming message"
         rawmsg = socket.recv_multipart()
-        print " Got ", rawmsg
+        #print " Got ", rawmsg
         
         msg = control_pb2.ControlType()
         
@@ -245,8 +268,11 @@ try:
                                       rv = register(msgfrom, msg.apikey)
                                       msg.registerResponse.REQport = routerport
                                       msg.registerResponse.PUBport = publisherport
-                                      print " Registered successfully. Sending reply."
-    
+                                      msg.status = rv
+                                      if rv == control_pb2.ControlType.SUCCESS:
+                                          print " Registered successfully. Sending reply."
+                                      else:
+                                          print " Registration failed (unauthorized)."
                                   else:
                                       print " Not open_for_business yet. Go away."
     
@@ -260,12 +286,12 @@ try:
                                 if open_for_business == True:
                                     if msgfrom == dbname and msg.apikey == dbkey:
                                         open_for_business = False
-                                        rv = unregister(msgfrom)
+                                        rv = unregister(msgfrom, None)
                                         msg.status = rv
                                         msg.seq = msgid
                                     else:
                                         # TODO check apikey with db
-                                        rv = unregister(msgfrom)
+                                        rv = unregister(msgfrom, msg.apikey)
                                         msg.status = rv
                                         msg.seq = msgid
                                         
@@ -274,18 +300,16 @@ try:
                             elif msgcommand == control_pb2.ControlType.LISTCLIENTS:
                                  print "LIST-CLIENTS for: " + msgfrom
                                  if open_for_business == True:
-                                     rv = list_clients()
-                                     msg.status = msg.status | control_pb2.ControlType.SUCCESS
+                                     rv = list_clients(msg.apikey)
                                      msg.seq = msgid
-                                     #m2 = control_pb2.ControlType()
-                                     #m2.listClientsResponse.client.append(rv.client)
-                                     #m2.listClientsResponse.connectTimestamp.append(rv.connectTimestamp)
+                                     msg.status = msg.status | control_pb2.ControlType.FAILED
+
+
+                                     if rv != None:
+                                         msg.status = msg.status | control_pb2.ControlType.SUCCESS
+                                         msg.listClientsResponse.client.extend(rv.client)
+                                         msg.listClientsResponse.connectTimestamp.extend(rv.connectTimestamp)
                                      
-                                     msg.listClientsResponse.client.extend(rv.client)
-                                     msg.listClientsResponse.connectTimestamp.extend(rv.connectTimestamp)
-                                     
-                                     #msg.listClientsReponse.client = rv.client[:]
-                                     #msg.listClientsResponse.connectTimestamp = rv.connectTimestamp[:]
                                      socket.send_multipart( [ msgreallyfrom, '', msg.SerializeToString() ] )
                                  
                             elif msgcommand == control_pb2.ControlType.IPUBLISH:
