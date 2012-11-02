@@ -16,7 +16,11 @@ message ListClientsResponse {
 	repeated int32 connectTimestamp = 2;
 }
 
-  	
+message PingRequest {
+	optional double ts = 1;
+	optional int32  pingseq = 2;
+}
+
 message APIKeyRequest {
 	optional string apikey = 1;
 	optional string alias = 2;
@@ -89,9 +93,10 @@ message ControlType {
     
     optional string apikey       = 8;
     
-	optional RegisterResponse registerResponse       =  9;
-	optional IPublishRequest iPublishRequest         = 10;
+	optional RegisterResponse    registerResponse    =  9;
+	optional IPublishRequest     iPublishRequest     = 10;
 	optional ListClientsResponse listClientsResponse = 11;
+	optional PingRequest         pingRequest         = 12;
 }
 
 
