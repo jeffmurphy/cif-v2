@@ -46,6 +46,8 @@ import cifsupport
 
 sys.path.append('../../libcif/lib')
 from CIF.CtrlCommands.Clients import *
+from CIF.CtrlCommands.Ping import *
+
 from CIF.Foundation import Foundation
 
 def usage():
@@ -73,20 +75,30 @@ def listClientsFinished(msg):
         if debug > 2:
             print "\t\tlist clients failed. " + msg.status
 
-def ping(myid, apikey, dst):
-    print "Sending ping to " + dst
-    c = Clients.makecontrolmsg(myid, dst, apikey)
-    c.command = control_pb2.ControlType.PING
-    cf.sendmsg(c, pingFinished)
+def ping(myid, apikey, dst, num):
+    more = True
+    ps = 1
+    print "\nPING " + dst
+    while more:
+        c = Ping.makerequest(myid, dst, apikey, ps)
+        ps = ps + 1
+        cf.sendmsg(c, pingFinished)
+        time.sleep(1)
+        if num != -1:  # -1 = forever
+            num = num - 1
+            if num < 1:
+                more = False
 
 def pingFinished(msg):
     if msg.type == control_pb2.ControlType.REPLY and msg.command == control_pb2.ControlType.PING and msg.status == control_pb2.ControlType.SUCCESS:
-        print "Got a reply to my ping"
+        recv = time.time()
+        # 64 bytes from 10.211.55.4: icmp_seq=1 ttl=64 time=0.085 ms
+        print "%d bytes from %s: seq=%d time=%.4f ms" % ( len(str(msg)), msg.src, msg.pingRequest.pingseq, (recv - msg.pingRequest.ts))
     else:
         print "Got a reply back to my ping, but it doesn't look right: ", msg
 
 def help():
-    print "commands: clients, debug #, help, exit"
+    print "commands: clients, debug #, ping <dst> [qty=1], help, exit"
 
 global debug
 debug = 2
@@ -163,7 +175,10 @@ try:
                 listClients(myid, apikey)
                 
             elif parts[0] == "ping":
-                ping(myid, apikey, parts[1])
+                num = 1
+                if len(parts) == 3:
+                    num = int(parts[2])
+                ping(myid, apikey, parts[1], num)
                 
             else:
                 help()
