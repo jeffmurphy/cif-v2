@@ -13,8 +13,8 @@ sub new {
     
     my $self = {};
     bless($self,$class);
-    
-    $self->init_db($args);
+    print "CIF DBI new\n";
+#    $self->init_db($args);
 
     return (undef,$self);
 }
@@ -30,7 +30,7 @@ sub init_db {
     my $user        = $config->{'user'}     || 'postgres';
     my $password    = $config->{'password'} || '';
     my $host        = $config->{'host'}     || '127.0.0.1';
-    
+
     my $dbi = 'DBI:Pg:database='.$db.';host='.$host;
 
     my $ret = $self->connection($dbi,$user,$password,{ AutoCommit => 0});

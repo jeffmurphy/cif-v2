@@ -12,6 +12,7 @@ use Digest::SHA1 qw(sha1_hex);
 use MIME::Base64;
 require Compress::Snappy;
 use CIF::Profile;
+use CIF::Msg::Feed;
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(qw(
@@ -142,7 +143,7 @@ sub init_restriction_map {
     foreach (keys %{$self->get_restriction_map()}){
         
         ## TODO map to the correct Protobuf RestrictionType
-        my $m = FeedType::MapType->new({
+        my $m = CIF::Msg::FeedType::MapType->new({
             key => $_,
             value   => $self->get_restriction_map->{$_},
         });
@@ -161,7 +162,7 @@ sub init_group_map {
     push(@$g, qw(everyone root));
     my $array;
     foreach (@$g){
-        my $m = FeedType::MapType->new({
+        my $m = CIF::Msg::FeedType::MapType->new({
             key     => generate_uuid_ns($_),
             value   => $_,
         });

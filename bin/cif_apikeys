@@ -5,7 +5,7 @@ use strict;
 # fix lib paths, some may be relative
 BEGIN {
     require File::Spec;
-    my @libs = ("lib", "local/lib");
+    my @libs = ("lib", "local/lib", "/usr/local/lib/cif-protocol/pb-perl/lib/");
     my $bin_path;
 
     for my $lib (@libs) {
@@ -36,9 +36,10 @@ use Text::Table;
 use Config::Simple;
 use DateTime::Format::DateParse;
 use Data::Dumper;
+use CIF::Foundation;
 
 my %opts;
-getopt('E:G:g:k:u:c:R:', \%opts);
+getopt('E:G:g:k:u:c:R:h', \%opts);
 die(usage()) if($opts{'h'});
 
 my $user            = $opts{'u'};
@@ -103,6 +104,23 @@ my $profile = CIF::Profile->new({
     config  => $config,
 });
 
+my $cfg = new Config::Simple();
+$cfg->read($config);
+
+my $cf = new CIF::Foundation( {
+    'config' => { 
+    	zmq_controlport => $cfg->param('cif_apikeys.zmq_controlport'),
+    	zmq_cifrouter => $cfg->param('cif_apikeys.zmq_cifrouter'),
+    	zmq_myid => $cfg->param('cif_apikeys.zmq_myid')
+    },
+    'basecfg' => {
+    	apikey => $cfg->param('client.apikey')
+    }
+ });
+
+ $cf->requestsocket();
+ $cf->register();
+ 
 if($add){
     die(usage()) unless($user);
     my $id = $profile->user_add({

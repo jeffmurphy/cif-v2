@@ -8,7 +8,7 @@ use CIF qw(debug);
 
 __PACKAGE__->columns(All => qw/id uuid guid hash address confidence detecttime created/);
 
-sub generate_feeds { return; }
+#sub generate_feeds { return; }
 
 # specific to domain and infrastructure
 # where we need the address to bench against the whitelist
