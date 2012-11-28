@@ -6,12 +6,13 @@ use strict;
 
 use CIF qw(debug);
 
-__PACKAGE__->columns(All => qw/id uuid guid hash address confidence detecttime created/);
+__PACKAGE__->columns(All => qw/id uuid guid hash address confidence reporttime created/);
 
 #sub generate_feeds { return; }
 
 # specific to domain and infrastructure
 # where we need the address to bench against the whitelist
+no warnings;
 sub generate_feeds { 
     my $class   = shift;
     my $args    = shift;
@@ -25,6 +26,7 @@ sub generate_feeds {
     debug('fetching');
     return($sth->fetchall_hashref('id'));
 }
+use warnings;
 
 # used for domains and ip's
 # because we can have /24's and blanket TLDs in the whitelist
@@ -35,7 +37,7 @@ __PACKAGE__->set_sql('feed' => qq{
         SELECT t.hash, t.id, t.uuid, t.guid, t.address
         FROM __TABLE__ t
         WHERE
-            t.detecttime >= ?
+            t.reporttime >= ?
             AND t.confidence >= ?
         ORDER by t.id DESC
         LIMIT ?
@@ -51,7 +53,7 @@ __PACKAGE__->set_sql('feed_whitelist' => qq{
         SELECT t2.hash, t2.address
         FROM __TABLE__ t2
         WHERE
-            t2.detecttime >= ?
+            t2.reporttime >= ?
             AND t2.confidence >= ?
         ORDER BY id DESC
         LIMIT ?
