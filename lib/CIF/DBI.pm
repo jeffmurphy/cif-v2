@@ -13,7 +13,6 @@ sub new {
     
     my $self = {};
     bless($self,$class);
-    print "CIF DBI new\n";
 #    $self->init_db($args);
 
     return (undef,$self);
