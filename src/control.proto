@@ -21,25 +21,30 @@ message PingRequest {
 	optional int32  pingseq = 2;
 }
 
+// supported ("indexed") requests are:
+//   by-apikey
+//   by-alias
+//   by-group
+// in that order, if multiple are filled in, the first one
+// from the above list is used.
+
 message APIKeyRequest {
 	optional string apikey = 1;
 	optional string alias = 2;
-	optional string guid = 3;
-	optional bool restrictedAccess = 4;
-	optional bool writeAccess = 5;
-	optional string description = 6;
-	repeated string groups = 7;
+	repeated string groups = 3;
 }
 
 message APIKeyResponse {
 	optional string apikey = 1;
 	optional string alias = 2;
-	optional string guid = 3;
-	optional bool restrictedAccess = 4;
-	optional bool writeAccess = 5;
-	optional string description = 6;
-	repeated string groups = 7;
-	repeated string addedBy = 8;
+	optional bool restrictedAccess = 3;
+	optional bool writeAccess = 4;
+	optional string description = 5;
+	optional int32 expires = 6; // timestamp,UTC 0=never 
+	optional bool revoked = 7;
+        repeated string groups = 8;
+        repeated string addedBy = 9;
+	repeated string restrictions = 10;
 }
 
 message ControlType {
@@ -75,15 +80,17 @@ message ControlType {
     	APIKEY_DEL     = 13;
     	APIKEY_REVOKE  = 14;
     	APIKEY_LIST    = 15;
+    	APIKEY_GET     = 16;
     	
-    	APIKEY_GROUPS_ADD    = 16;
-    	APIKEY_GROUPS_UPDATE = 17;
-    	APIKEY_GROUPS_DEL    = 18;
-    	APIKEY_GROUPS_REVOKE = 19;
-    	APIKEY_GROUPS_LIST   = 20;
+    	APIKEY_GROUPS_ADD    = 17;
+    	APIKEY_GROUPS_UPDATE = 18;
+    	APIKEY_GROUPS_DEL    = 19;
+    	APIKEY_GROUPS_REVOKE = 20;
+    	APIKEY_GROUPS_LIST   = 21;
+    	APIKEY_GROUPS_GET    = 22;
     }
     
-    optional double version       = 1 [default = 20120927.00];
+    optional double version       = 1 [default = 20121203.00];
     optional bytes seq           = 2; // used to match commands to replies, must be preserved in replies 
     optional string dst          = 3;
     optional string src          = 4;
@@ -97,6 +104,8 @@ message ControlType {
 	optional IPublishRequest     iPublishRequest     = 10;
 	optional ListClientsResponse listClientsResponse = 11;
 	optional PingRequest         pingRequest         = 12;
+	optional APIKeyRequest       apiKeyRequest       = 13;
+	repeated APIKeyResponse      apiKeyResponseList  = 14;
 }
 
 

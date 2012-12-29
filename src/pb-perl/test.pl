@@ -40,8 +40,8 @@ my $c = CIF::Msg::ControlType->encode({
 	command => CIF::Msg::ControlType::CommandType::REGISTER(),
 	src => 'me',
 	dst => 'you',
-	version => 20120927, 
-	#version => CIF::Msg::Support::getOurVersion("Control"), # _required_
+	#version => 20120927, 
+	version => CIF::Msg::Support::getOurVersion("Control"), # _required_
 });
 
 my $dc = CIF::Msg::ControlType->decode($c);
