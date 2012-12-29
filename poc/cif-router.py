@@ -55,22 +55,9 @@ sys.path.append('../../libcif/lib')
 
 from CIF.RouterStats import *
 from CIF.CtrlCommands.Clients import *
+from CIFRouter.MiniClient import *
 
 myname = "cif-router"
-
-def register(clientname, zmqid, apikey):
-    if apikey != None:
-        if validate_apikey(apikey) == control_pb2.ControlType.SUCCESS:
-            clients.register(clientname, zmqid)
-            return control_pb2.ControlType.SUCCESS
-        return control_pb2.ControlType.FAILED
-    else:
-        # the only place we call with apikey=None is when cif-db connects
-        # because the apikey is specified on the command line (and validated
-        # in the main routine)
-        clients.register(clientname, zmqid)
-        return control_pb2.ControlType.SUCCESS
-    return control_pb2.ControlType.FAILED
 
 def dosubscribe(m):
     if m.src in publishers :
@@ -86,40 +73,96 @@ def dosubscribe(m):
         return control_pb2.ControlType.SUCCESS
     return control_pb2.ControlType.FAILED
 
-def unregister(clientname, apikey):
-    if validate_apikey(apikey) == control_pb2.ControlType.SUCCESS and clients.isregistered(clientname):
-        print "\tunregistered"
-        clients.unregister(clientname)
-        return control_pb2.ControlType.SUCCESS
-    print "\tclient unknown or unauthorized"
-    return control_pb2.ControlType.FAILED
-
-def list_clients(apikey):
-    if validate_apikey(apikey) == control_pb2.ControlType.SUCCESS:
+def list_clients(client, apikey):
+    if clients.isregistered(client) == True and clients.apikey(client) == apikey:
         return clients.asmessage()
     return None
 
-def validate_apikey(apikey):
-    """
-    Make sure the given apikey exists, is not revoked, is not expired.
-    This routine just determines "are you allowed to connect to us?"
-    """
-    if apikey != None:
-        db_zmqid = clients.getzmqidentity("cif-db")
-        print "validating apikey for ", apikey, " db is ", db_zmqid
-        msg = control_pb2.ControlType()
-        msg.version = msg.version # required
-        msg.type = control_pb2.ControlType.COMMAND
-        msg.command = control_pb2.ControlType.APIKEY_LIST
-        msg.dst = "cif-db"
-        msg.src = "cif-router"
-        msg.apikey = apikey
-        _md5 = hashlib.md5()
-        _md5.update(msg.SerializeToString())
-        msg.seq = _md5.digest()
-        socket.send_multipart([ db_zmqid, '', msg.SerializeToString()])
-        return control_pb2.ControlType.SUCCESS
-    return control_pb2.ControlType.FAILED
+def make_register_reply(msgfrom, _apikey):
+    msg = control_pb2.ControlType()
+    msg.version = msg.version # required
+    msg.type = control_pb2.ControlType.REPLY
+    msg.command = control_pb2.ControlType.REGISTER
+    msg.dst = msgfrom
+    msg.src = "cif-router"
+    msg.apikey = apikey
+
+    return msg
+
+def make_unregister_reply(msgfrom, _apikey):
+    msg = control_pb2.ControlType()
+    msg.version = msg.version # required
+    msg.type = control_pb2.ControlType.REPLY
+    msg.command = control_pb2.ControlType.UNREGISTER
+    msg.dst = msgfrom
+    msg.src = "cif-router"
+    msg.apikey = apikey
+
+    return msg
+
+def make_msg_seq(msg):
+    _md5 = hashlib.md5()
+    _md5.update(msg.SerializeToString())
+    return _md5.digest()
+
+def handle_miniclient_reply(socket, routerport, publisherport):
+    pending_registers = miniclient.pending_apikey_lookups()
+    print "pending_apikey_lookups: ", pending_registers
+    
+    for apikey in pending_registers:
+        if apikey in register_wait_map:
+            reply_to = register_wait_map[apikey]
+            apikey_results = miniclient.get_pending_apikey(apikey)
+            
+            print "  send reply to: ", reply_to
+            msg = make_register_reply(reply_to['msgfrom'], apikey)
+            msg.status = control_pb2.ControlType.FAILED
+            
+            if apikey_results != None:
+                if apikey_results.revoked == False:
+                    if apikey_results.expires == 0 or apikey_results.expires >= time.time():
+                        msg.registerResponse.REQport = routerport
+                        msg.registerResponse.PUBport = publisherport
+                        msg.status = control_pb2.ControlType.SUCCESS
+                        clients.register(reply_to['msgfrom'], reply_to['from_zmqid'], apikey)
+                        print " Register succeeded."
+                    else:
+                        print " Register failed: key expired"
+                else:
+                    print " Register failed: key revoked"
+            else:
+                print " Register failed: unknown key"
+                
+            msg.seq = reply_to['msgseq']
+            socket.send_multipart([reply_to['from_zmqid'], '', msg.SerializeToString()])
+            del register_wait_map[apikey]
+        elif apikey in unregister_wait_map:
+            reply_to = unregister_wait_map[apikey]
+            apikey_results = miniclient.get_pending_apikey(apikey)
+            
+            print "  send reply to: ", reply_to
+            msg = make_unregister_reply(reply_to['msgfrom'], apikey)
+            msg.status = control_pb2.ControlType.FAILED
+            
+            if apikey_results != None:
+                if apikey_results.revoked == False:
+                    if apikey_results.expires == 0 or apikey_results.expires >= time.time():
+                        msg.status = control_pb2.ControlType.SUCCESS
+                        clients.unregister(reply_to['msgfrom'])
+                        print " Unregister succeeded."
+                    else:
+                        print " Unregister failed: key expired"
+                else:
+                    print " Unregister failed: key revoked"
+            else:
+                print " Unregister failed: unknown key"
+                
+            msg.seq = reply_to['msgseq'] 
+            socket.send_multipart([reply_to['from_zmqid'], '', msg.SerializeToString()])
+            del unregister_wait_map[apikey]
+            
+            
+        miniclient.remove_pending_apikey(apikey)
 
 def myrelay(pubport):
     relaycount = 0
@@ -150,7 +193,7 @@ def myrelay(pubport):
         xpub.send(m)
     
 def usage():
-    print "cif-router [-r routerport] [-p pubport] [-m myid] [-dn dbname] [-dk dbkey] [-h]"
+    print "cif-router [-r routerport] [-p pubport] [-m myid] [-a myapikey] [-dn dbname] [-dk dbkey] [-h]"
     print "   routerport = 5555, pubport = 5556, myid = cif-router"
     print "   dbkey = a8fd97c3-9f8b-477b-b45b-ba06719a0088"
     print "   dbname = cif-db"
@@ -174,6 +217,13 @@ publisherport = 5556
 myid = "cif-router"
 dbkey = 'a8fd97c3-9f8b-477b-b45b-ba06719a0088'
 dbname = 'cif-db'
+global apikey
+apikey = 'a1fd11c1-1f1b-477b-b45b-ba06719a0088'
+miniclient = None
+miniclient_id = myid + "-miniclient"
+register_wait_map = {}
+unregister_wait_map = {}
+
 
 for o, a in opts:
     if o == "-r":
@@ -186,6 +236,8 @@ for o, a in opts:
         dbkey = a
     elif o == "-dn":
         dbname = a
+    elif o == "-a":
+        apikey = a
     elif o == "-h":
         usage()
         sys.exit(2)
@@ -195,6 +247,9 @@ global socket
 socket = context.socket(zmq.ROUTER)
 socket.bind("tcp://*:" + str(routerport))
 socket.setsockopt(zmq.IDENTITY, myname)
+
+poller = zmq.Poller()
+poller.register(socket, zmq.POLLIN)
 
 print "Create XSUB socket"
 xsub = context.socket(zmq.SUB)
@@ -210,127 +265,153 @@ try:
     open_for_business = False
     
     while True:
-        print "[up " + str(int(mystats.getuptime())) + "s]: Get incoming message"
-        rawmsg = socket.recv_multipart()
-        #print " Got ", rawmsg
-        
-        msg = control_pb2.ControlType()
-        
-        try:
-            msg.ParseFromString(rawmsg[2])
-        except Exception as e:
-            print "Received message isn't a protobuf: ", e
-            mystats.setbad()
-        else:
-            from_zmqid = rawmsg[0] # save the ZMQ identity of who sent us this message
+        sockets_with_data_ready = dict(poller.poll(1000))
+        #print "[up " + str(int(mystats.getuptime())) + "s]: Wakeup: "
+
+        if miniclient != None:
+            if miniclient.pending() == True:
+                print "\tMiniclient has replies we need to handle."
+                handle_miniclient_reply(socket, routerport, publisherport)
             
-            #print "Got msg: ", msg
-    
+        if sockets_with_data_ready and sockets_with_data_ready.get(socket) == zmq.POLLIN:
+            print "[up " + str(int(mystats.getuptime())) + "s]: Got an inbound message"
+            rawmsg = socket.recv_multipart()
+            #print " Got ", rawmsg
+            
+            msg = control_pb2.ControlType()
+            
             try:
-                cifsupport.versionCheck(msg)
+                msg.ParseFromString(rawmsg[2])
             except Exception as e:
-                print "Received message has incompatible version: ", e
-                mystats.setbadversion(1, msg.version)
+                print "Received message isn't a protobuf: ", e
+                mystats.setbad()
             else:
-            
-                if cifsupport.isControl(msg):
-                    msgfrom = msg.src
-                    msgto = msg.dst
-                    msgcommand = msg.command
-                    msgid = msg.seq
-                    
-                    if msgfrom != '' and msg.apikey != '':
-                        if msgto == myname and msg.type == control_pb2.ControlType.COMMAND:
-                            print "COMMAND for me: ", msgcommand
-                            
-                            mystats.setcontrols(1, msgcommand)
-                            
-                            """
-                            For REGISTER:
-                                We allow only the db to register with us while we are not
-                                open_for_business. Once the DB registers, we are open_for_business
-                                since we can then start validating apikeys. Until that time, we can
-                                only validate the dbkey that is specified on the command line when
-                                you launch this program.
-                            """
-                            if msgcommand == control_pb2.ControlType.REGISTER:
-                                  print "REGISTER from: " + msgfrom
-                                  
-                                  msg.status = control_pb2.ControlType.FAILED
-                                  msg.type = control_pb2.ControlType.REPLY
-                                  msg.seq = msgid
-                                  
-                                  if msgfrom == dbname and msg.apikey == dbkey:
-                                      rv = register(msgfrom, from_zmqid, None)
-                                      msg.status = control_pb2.ControlType.SUCCESS
-                                      msg.registerResponse.REQport = routerport
-                                      msg.registerResponse.PUBport = publisherport
-                                      open_for_business = True
-                                      print " DB has connected successfully. Sending reply."
-                                      
-                                  elif open_for_business == True:
-                                      rv = register(msgfrom, from_zmqid, msg.apikey)
-                                      msg.registerResponse.REQport = routerport
-                                      msg.registerResponse.PUBport = publisherport
-                                      msg.status = rv
-                                      if rv == control_pb2.ControlType.SUCCESS:
-                                          print " Registered successfully. Sending reply."
-                                      else:
-                                          print " Registration failed (unauthorized)."
-                                  else:
-                                      print " Not open_for_business yet. Go away."
-    
-                                  socket.send_multipart([from_zmqid, '', msg.SerializeToString()])
-                                              
-                            elif msgcommand == control_pb2.ControlType.UNREGISTER:
-                                """
-                                If the database unregisters, then we are not open_for_business any more.
-                                """
-                                print "UNREGISTER from: " + msgfrom
-                                if open_for_business == True:
-                                    if msgfrom == dbname and msg.apikey == dbkey:
-                                        open_for_business = False
-                                        rv = unregister(msgfrom, None)
-                                        msg.status = rv
-                                        msg.seq = msgid
-                                    else:
-                                        # TODO check apikey with db
-                                        rv = unregister(msgfrom, msg.apikey)
-                                        msg.status = rv
-                                        msg.seq = msgid
+                from_zmqid = rawmsg[0] # save the ZMQ identity of who sent us this message
+                
+                print "Got msg: "#, msg.seq
+        
+                try:
+                    cifsupport.versionCheck(msg)
+                except Exception as e:
+                    print "Received message has incompatible version: ", e
+                    mystats.setbadversion(1, msg.version)
+                else:
+                
+                    if cifsupport.isControl(msg):
+                        msgfrom = msg.src
+                        msgto = msg.dst
+                        msgcommand = msg.command
+                        msgid = msg.seq
+                        
+                        if msgfrom != '' and msg.apikey != '':
+                            if msgto == myname and msg.type == control_pb2.ControlType.REPLY:
+                                print "REPLY for me: ", msgcommand
+                                if msgcommand == control_pb2.ControlType.APIKEY_GET:
+                                    print "Received a REPLY for an APIKEY_GET"
                                         
-                                    socket.send_multipart([ from_zmqid, '', msg.SerializeToString()])
-                            
-                            elif msgcommand == control_pb2.ControlType.LISTCLIENTS:
-                                 print "LIST-CLIENTS for: " + msgfrom
-                                 if open_for_business == True:
-                                     rv = list_clients(msg.apikey)
-                                     msg.seq = msgid
-                                     msg.status = msg.status | control_pb2.ControlType.FAILED
+                            elif msgto == myname and msg.type == control_pb2.ControlType.COMMAND:
+                                print "COMMAND for me: ", msgcommand
+                                
+                                mystats.setcontrols(1, msgcommand)
+                                
+                                """
+                                For REGISTER:
+                                    We allow only the db to register with us while we are not
+                                    open_for_business. Once the DB registers, we are open_for_business
+                                    since we can then start validating apikeys. Until that time, we can
+                                    only validate the dbkey that is specified on the command line when
+                                    you launch this program.
+                                """
+                                if msgcommand == control_pb2.ControlType.REGISTER:
+                                      print "REGISTER from: " + msgfrom
+                                      
+                                      msg.status = control_pb2.ControlType.FAILED
+                                      msg.type = control_pb2.ControlType.REPLY
+                                      msg.seq = msgid
+                                      
+                                      if msgfrom == miniclient_id and msg.apikey == apikey:
+                                          clients.register(msgfrom, from_zmqid, msg.apikey)
+                                          msg.status = control_pb2.ControlType.SUCCESS
+                                          msg.registerResponse.REQport = routerport
+                                          msg.registerResponse.PUBport = publisherport
+                                          print "MiniClient has registered."
+                                          socket.send_multipart([from_zmqid, '', msg.SerializeToString()])
 
+                                      elif msgfrom == dbname and msg.apikey == dbkey:
+                                          clients.register(msgfrom, from_zmqid, msg.apikey)
+                                          msg.status = control_pb2.ControlType.SUCCESS
+                                          msg.registerResponse.REQport = routerport
+                                          msg.registerResponse.PUBport = publisherport
+                                          open_for_business = True
+                                          print " DB has connected successfully. Sending reply to DB."
+                                          print "Starting embedded client"
+                                          miniclient = MiniClient(apikey, "127.0.0.1", "127.0.0.1:" + str(routerport), 5557, miniclient_id, 1)
+                                          socket.send_multipart([from_zmqid, '', msg.SerializeToString()])
 
-                                     if rv != None:
-                                         msg.status = msg.status | control_pb2.ControlType.SUCCESS
-                                         msg.listClientsResponse.client.extend(rv.client)
-                                         msg.listClientsResponse.connectTimestamp.extend(rv.connectTimestamp)
+                                      elif open_for_business == True:
+                                          """
+                                          Since we need to wait for the DB to response, we note this pending request, ask the miniclient
+                                          to handle the lookup. We will poll the MC to see if the lookup has finished. Reply to client 
+                                          will be sent from handle_miniclient_reply()
+                                          """
+                                          miniclient.lookup_apikey(msg.apikey)
+                                          register_wait_map[msg.apikey] = {'msgfrom': msgfrom, 'from_zmqid': from_zmqid, 'msgseq': msg.seq}
+
+                                      else:
+                                          print " Not open_for_business yet. Go away."
+        
+                                                  
+                                elif msgcommand == control_pb2.ControlType.UNREGISTER:
+                                    """
+                                    If the database unregisters, then we are not open_for_business any more.
+                                    """
+                                    print "UNREGISTER from: " + msgfrom
+                                    if open_for_business == True:
+                                        if msgfrom == dbname and msg.apikey == dbkey:
+                                            print "  DB unregistered. Closing for business."
+                                            open_for_business = False
+                                            clients.unregister(msgfrom)
+                                            msg.status = control_pb2.ControlType.SUCCESS
+                                            msg.seq = msgid
+                                            socket.send_multipart([ from_zmqid, '', msg.SerializeToString()])
+                                        else:
+                                            """
+                                            Since we need to wait for the DB to response, we note this pending request, ask the miniclient
+                                            to handle the lookup. We will poll the MC to see if the lookup has finished. Reply to the client
+                                            will be sent from handle_miniclient_reply() 
+                                            """
+                                            miniclient.lookup_apikey(msg.apikey)
+                                            unregister_wait_map[msg.apikey] = {'msgfrom': msgfrom, 'from_zmqid': from_zmqid, 'msgseq': msg.seq}
+                                
+                                elif msgcommand == control_pb2.ControlType.LISTCLIENTS:
+                                     print "LIST-CLIENTS for: " + msgfrom
+                                     if open_for_business == True:
+                                         rv = list_clients(msg.src, msg.apikey)
+                                         msg.seq = msgid
+                                         msg.status = msg.status | control_pb2.ControlType.FAILED
+    
+                                         if rv != None:
+                                             msg.status = msg.status | control_pb2.ControlType.SUCCESS
+                                             msg.listClientsResponse.client.extend(rv.client)
+                                             msg.listClientsResponse.connectTimestamp.extend(rv.connectTimestamp)
+                                         
+                                         socket.send_multipart( [ from_zmqid, '', msg.SerializeToString() ] )
                                      
-                                     socket.send_multipart( [ from_zmqid, '', msg.SerializeToString() ] )
-                                 
-                            elif msgcommand == control_pb2.ControlType.IPUBLISH:
-                                 print "IPUBLISH from: " + msgfrom
-                                 if open_for_business == True:
-                                     rv = dosubscribe(msg)
-                                     msg.status = rv
-                                     socket.send_multipart( [from_zmqid, '', msg.SerializeToString()] )
-                        else:
-                            print "COMMAND for someone else: cmd=", msgcommand, "src=", msgfrom, " dst=", msgto
-                            msgto_zmqid = clients.getzmqidentity(msgto)
-                            if msgto_zmqid != None:
-                                socket.send_multipart([msgto_zmqid, '', msg.SerializeToString()])
+                                elif msgcommand == control_pb2.ControlType.IPUBLISH:
+                                     print "IPUBLISH from: " + msgfrom
+                                     if open_for_business == True:
+                                         rv = dosubscribe(msg)
+                                         msg.status = rv
+                                         socket.send_multipart( [from_zmqid, '', msg.SerializeToString()] )
                             else:
-                                print "Unknown message destination: ", msgto
-                    else:
-                        print "msgfrom and/or msg.apikey is empty"
+                                print "COMMAND for someone else: cmd=", msgcommand, "src=", msgfrom, " dst=", msgto
+                                msgto_zmqid = clients.getzmqidentity(msgto)
+                                if msgto_zmqid != None:
+                                    socket.send_multipart([msgto_zmqid, '', msg.SerializeToString()])
+                                else:
+                                    print "Unknown message destination: ", msgto
+                        else:
+                            print "msgfrom and/or msg.apikey is empty"
                         
 except KeyboardInterrupt:
     print "Shut down."
