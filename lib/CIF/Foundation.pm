@@ -88,12 +88,11 @@ sub publishersocket {
 
 # returns 0 on sucess, 1 on failure and sets self->{error}
 
-sub make_control_messageXX {
+sub add_seq {
 	my $self = shift;
-	my $h = shift;
-	my $cm = CIF::Msg::ControlType->new($h);
-	$h->{seq} = md5($cm->encode());
-	return $cm->encode();	
+	my $cm = shift;
+	$cm->{seq} = md5($cm->encode());
+	return $cm;	
 }
 
 sub register {
