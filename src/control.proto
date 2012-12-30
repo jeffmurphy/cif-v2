@@ -31,12 +31,20 @@ message PingRequest {
 message APIKeyRequest {
 	optional string apikey = 1;
 	optional string alias = 2;
-	repeated string groupsList = 3;
+        optional bool restrictedAccess = 3;
+        optional bool writeAccess = 4;
+        optional string description = 5;
+        optional int32 expires = 6; // timestamp,UTC 0=never
+        optional bool revoked = 7;
+        repeated APIKeyGroup groupsList = 8;
+        repeated string restrictionsList = 9;
+        optional string parent = 10;
 }
 
 message APIKeyGroup {
 	optional string groupname = 1;
 	optional string groupid = 2;
+	optional bool default = 3;
 }
 
 message APIKeyResponse {
@@ -97,7 +105,7 @@ message ControlType {
     	APIKEY_GROUPS_GET    = 22;
     }
     
-    optional double version       = 1 [default = 20121203.00];
+    optional double version       = 1 [default = 20121230.00];
     optional bytes seq           = 2; // used to match commands to replies, must be preserved in replies 
     optional string dst          = 3;
     optional string src          = 4;
