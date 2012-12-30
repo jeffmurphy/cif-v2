@@ -1,4 +1,4 @@
-package CIF::Foundation;
+package CIF::Client::CIFPublisher;
 use base 'Class::Accessor';
 
 use strict;
@@ -6,7 +6,6 @@ use warnings;
 
 use CIF::Msg;
 use CIF::Msg::Control;
-use CIF::Msg::Support;
 use ZeroMQ qw(ZMQ_PUB ZMQ_REQ ZMQ_IDENTITY ZMQ_SNDMORE ZMQ_RCVMORE ZMQ_NOBLOCK);
 use ZeroMQ::Raw;
 use Data::Dumper;
@@ -14,15 +13,10 @@ use Carp qw(cluck confess);
 use Sys::Hostname;
 use Socket qw(inet_ntoa);
 
-use Digest::MD5 qw(md5 md5_hex md5_base64);
+use CIF::Foundation;
 
 __PACKAGE__->follow_best_practice();
-__PACKAGE__->mk_accessors(qw(config error));
-
-sub setdebug {
-	my $self = shift;
-	$self->{D} = shift;
-}
+__PACKAGE__->mk_accessors(qw(config));
 
 # CIFPublisher
 #
@@ -39,7 +33,7 @@ sub requestsocket {
     #req.setsockopt(zmq.IDENTITY, myname)
     #req.connect('tcp://' + cifrouter)	
     
-    print "Connecting to ". $self->{cifrouter} . " as " . $self->{myname} ."\n" if $self->{D};
+    print "Connecting to ". $self->{cifrouter} . " as " . $self->{myid} ."\n" if $self->{D};
 	$self->{req} = zmq_socket($self->{cntx}, ZMQ_REQ);
 	zmq_setsockopt($self->{req}, ZMQ_IDENTITY, $self->{myname});
 	zmq_connect($self->{req}, "tcp://" . $self->{cifrouter});
@@ -86,16 +80,6 @@ sub publishersocket {
     zmq_bind($self->{publisher}, "tcp://*:" . $self->{publisherport});    
 }
 
-# returns 0 on sucess, 1 on failure and sets self->{error}
-
-sub make_control_messageXX {
-	my $self = shift;
-	my $h = shift;
-	my $cm = CIF::Msg::ControlType->new($h);
-	$h->{seq} = md5($cm->encode());
-	return $cm->encode();	
-}
-
 sub register {
 	my $self = shift;
 	
@@ -109,22 +93,18 @@ sub register {
 #    msg.dst = 'cif-router'
 #    msg.src = myid
     
-    my $cm = CIF::Msg::ControlType->new({
+    my $cm = CIF::Msg::ControlType->encode({
 		type => CIF::Msg::ControlType::MsgType::COMMAND(),
 		command => CIF::Msg::ControlType::CommandType::REGISTER(),
-		src => $self->{'myname'},
-		dst => $self->{'cifrouter_id'},
+		src => 'cif-smrt',
+		dst => 'cif-router',
 		apikey => $self->{apikey},
 		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
 	});
-
-    my $seq = md5($cm->encode());
-    $cm->{seq} = $seq;
-    
     
     print "Sending REGISTER command\n" if $self->{D};
 	
-	$self->send_multipart([$cm->encode()]);
+	$self->send_multipart([$cm]);
 
 	print "Waiting for reply\n" if $self->{D};
 	
@@ -135,81 +115,55 @@ sub register {
 	if ($cm->get_status == CIF::Msg::ControlType::StatusType::DUPLICATE()) {
 		cluck("Already registered with cif-router?") if $self->{D};
 		$self->{error} = "Connection/ID conflict";
-		return 1;
 	}
-	elsif ($cm->get_status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
+	elsif ($cm->get_status == CIF::Msg::ControlType::StatusType::UNAUTHORIZED()) {
 		$self->{error} = "Not authorized";
-		return 1;
 	}
+	else {
+		# tell the router that we're a publisher so it will subscribe to us
 	
-	$self->{am_registered} = 1; 	
+		print "Send IPUBISH to cif-router\n" if $self->{D};
+		$cm->set_command(CIF::Msg::ControlType::CommandType::IPUBLISH());
+		$cm->set_type(CIF::Msg::ControlType::MsgType::COMMAND());
+		$cm->{'iPublishRequest'}->{'ipaddress'} = $self->myip();
+		$cm->{'iPublishRequest'}->{'port'} = $self->{'publisherport'};
+		
+		$self->send_multipart([$cm->encode()]);
+		$reply = $self->recv_multipart();
+		$cm = CIF::Msg::ControlType->decode($reply->[0]);
+		
+		#print "got reply: ". Dumper($cm). "\n" if $self->{D};
 	
-	return 0;
-}
-
-sub ipublish {
-	my $self = shift;
-
-	# tell the router that we're a publisher so it will subscribe to us
-
-	print "Send IPUBISH to cif-router\n" if $self->{D};
-	
-	my $cm = CIF::Msg::ControlType->encode({
-		type => CIF::Msg::ControlType::MsgType::COMMAND(),
-		command => CIF::Msg::ControlType::CommandType::REGISTER(),
-		src => $self->{'myname'},
-		dst => $self->{'cifrouter_id'},
-		apikey => $self->{apikey},
-		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
-	});
-	
-	$cm->set_command(CIF::Msg::ControlType::CommandType::IPUBLISH());
-	$cm->set_type(CIF::Msg::ControlType::MsgType::COMMAND());
-	$cm->{'iPublishRequest'}->{'apikey'} = $self->myip();
-	$cm->{'iPublishRequest'}->{'port'} = $self->{'publisherport'};
-	
-	$self->send_multipart([$cm->encode()]);
-	my $reply = $self->recv_multipart();
-	$cm = CIF::Msg::ControlType->decode($reply->[0]);
-	
-	#print "got reply: ". Dumper($cm). "\n" if $self->{D};
-
-	if ($cm->get_status == CIF::Msg::ControlType::StatusType::SUCCESS()) {
-		# success, cif-router should connect to our PUB socket (zmq won't tell us)
-		print "Registered successfully.\n" if $self->{D};
-	}
-	elsif ($cm->get_status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
-		confess("Failed to notify cif-router that we have information to publish");
-		return 1;
-	}
-	
-	return 0;
+		if ($cm->get_status eq CIF::Msg::ControlType::StatusType::SUCCESS()) {
+			# success, cif-router should connect to our PUB socket (zmq won't tell us)
+			print "Registered successfully.\n" if $self->{D};
+		}
+		elsif ($cm->get_status ne CIF::Msg::ControlType::StatusType::SUCCESS()) {
+			confess("Failed to notify cif-router that we have information to publish");
+		}
+	}        
 }
 
 sub unregister {
 	my $self = shift;
 	
-	my $cm = CIF::Msg::ControlType->new({
+	my $cm = CIF::Msg::ControlType->encode({
 		type => CIF::Msg::ControlType::MsgType::COMMAND(),
 		command => CIF::Msg::ControlType::CommandType::UNREGISTER(),
-		src => $self->{'myname'},
-		dst => $self->{'cifrouter_id'},
+		src => 'cif-smrt',
+		dst => 'cif-router',
 		apikey => $self->{apikey},
 		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
 	});
-    my $seq = md5($cm->encode());
-    $cm->{seq} = $seq;
     
-	$self->send_multipart([$cm->encode(), '']);
+	$self->send_multipart([$cm, '']);
 
 	my $reply = $self->recv_multipart();
 	$cm = CIF::Msg::ControlType->decode($reply->[0]);
 	
 	if ($cm->get_status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
 		cluck("Failed to UNREGISTER");
-		return 1;
 	}
-	return 0;
 }
 
 sub myip {
@@ -225,30 +179,6 @@ sub diiferr {
 	confess $self->{error} if ( exists $self->{'error'} && ($self->{'error'} ne "") );
 }
 
-=pod
-
- Usage:
- 
- $cf = new CIF::Foundation( {
-    'config' => { 
-    	zmq_controlport => ...,
-    	zmq_publisherport => ...,
-    	zmq_cifrouter => ...,
-    	zmq_myid => ...     
-    },
-    'basecfg' => {
-    	apikey => ...
-    }
- })
-
- $cf->requestsocket();
- $cf->register();
-
- $cf->publishersocket(); # optional, create a publisher socket
- $cf->ipubish(); # optional, tell the CIF router that we will be publishing (must come after ->publishersocket())
- 
-=cut
-
 sub new {
     my $class = shift;
     my $args = shift;
@@ -257,48 +187,61 @@ sub new {
     bless($self,$class);
     
     $self->{D} = 0;
+#    cluck("CONFIG " .Dumper($args));
 	
     $self->{'controlport'} = $args->{config}->{'zmq_controlport'};
-    $self->{'publisherport'} = $args->{config}->{'zmq_publisherport'} || "0";
+    $self->{'publisherport'} = $args->{config}->{'zmq_publisherport'};
     $self->{'cifrouter'} = $args->{config}->{'zmq_cifrouter'};
     $self->{'myid'} = $args->{config}->{'zmq_myid'};
     $self->{'myname'} = $self->myip() . ":" . $self->{publisherport} . "|" . $self->{myid};
     $self->{'apikey'} = $args->{basecfg}->{apikey};
+    
+    # $self->{cf} = new CIF::Foundation(
+	# {
+		# apikey => $self->{apikey},
+		# myip => $self->myip(),
+		# cifrouter => $self->{cifrouter},
+		# controlport => 15556,  # FIX
+		# publisherport => 15557, # FIX get from config
+		# myid => $self->{myid},
+		# routerid => 'cif-router',
+		# debug => 10
+	# }
+	# );
 	
     $self->{'cntx'} = zmq_init();
-
-	$self->{cifrouter_id} = "cif-router";
-	$self->{am_registered} = 0;
+    $self->requestsocket();
+    $self->publishersocket();
+    $self->register();
 	
     return($self);
 }
 
-sub make_control_message {
+sub __DESTROY__ {
 	my $self = shift;
-	my $dst = shift;
-	my $t = shift;
-	my $cmd = shift;
-	
-	return CIF::Msg::ControlType->new({
-		type => $t,
-		command => $cmd,
-		src => $self->{'myname'},
-		dst => $dst || $self->{'cifrouter_id'},
-		apikey => $self->{apikey},
-		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
-	});
-	
-}
-
-sub DESTROY {
-	my $self = shift;
-	$self->unregister() if  $self->{am_registered} == 1;
-	#https://zeromq.jira.com/browse/LIBZMQ-85
-	zmq_close($self->{publisher}) if exists $self->{publisher};
-	zmq_close($self->{req}) if exists $self->{req};
+	$self->unregister();
 	zmq_term($self->{cntx});
 }
 
+# config parameters required:
+#   controlport = "5656"
+#   publisherport = "5657"
+#   cifrouter = "sdev.nickelsoft.com:5555"
+#   myid = "poc-publisher"
 
+sub send {
+    my $self = shift;
+    my $data = shift;
+    return unless(defined($data));
+
+    my $rv = zmq_send($self->{publisher}, $data);
+    confess("failed to zmq_send the message") if $rv;
+    
+    my $rm = CIF::Msg::MessageType->encode({
+    	type => CIF::Msg::MessageType::MsgType::SUBMISSION(),
+    	status => 	CIF::Msg::MessageType::StatusType::SUCCESS()
+    });
+    return (undef, $rm);
+}
 
 1;
