@@ -1,17 +1,24 @@
 package CIF::Profile;
 use base 'Class::Accessor';
+use Carp qw(cluck croak);
+use Data::Dumper;
 
 use strict;
 use warnings;
 
 use CIF::APIKey;
-use CIF::APIKeyGroups;
-use CIF::APIKeyRestrictions;
+
 use CIF qw/is_uuid generate_uuid_random generate_uuid_ns/;
 use Digest::SHA1 qw/sha1_hex/;
 
 __PACKAGE__->follow_best_practice();
 __PACKAGE__->mk_accessors(qw(config db_config));
+
+=pod
+
+ new('cf' => $foundation)
+
+=cut
 
 sub new {
     my $class   = shift;
@@ -28,39 +35,11 @@ sub init {
     my $self = shift;
     my $args = shift;
     
-    $self->init_config($args);   
-    $self->init_db($args);
-    
+  	$self->{cf} = $args->{cf};
 }
 
-sub init_config {
-    my $self = shift;
-    my $args = shift;
-    
-    $args->{'config'} = Config::Simple->new($args->{'config'}) || return(undef,'missing config file');
-    
-    $self->set_config(      $args->{'config'}->param(-block => 'cif_profile'));
-    $self->set_db_config(   $args->{'config'}->param(-block => 'db'));
-    
-}
 
-sub init_db {
-    my $self = shift;
-    my $args = shift;
-    
-    my $config = $self->get_db_config();
-    
-    my $db          = $config->{'database'} || 'cif';
-    my $user        = $config->{'user'}     || 'postgres';
-    my $password    = $config->{'password'} || '';
-    my $host        = $config->{'host'}     || '127.0.0.1';
-    
-    my $dbi = 'DBI:Pg:database='.$db.';host='.$host;
-    
-    require CIF::DBI;
-    my $ret = CIF::DBI->connection($dbi,$user,$password,{ AutoCommit => 1});
-    return $ret;   
-}
+
 
 sub key_add {
     my $self    = shift;
@@ -79,7 +58,7 @@ sub key_add {
         expires             => $args->{'expires'},
     });
     
-    CIF::APIKey->dbi_commit() unless(CIF::APIKey->db_Main->{'AutoCommit'});
+
     return($r);
 }
 
@@ -187,8 +166,54 @@ sub user_list {
     my $self = shift;
     my $args = shift;
     
-    return CIF::APIKey->retrieve_all() unless($args->{'user'});
-    return CIF::APIKey->search(uuid_alias => $args->{'user'}, { order_by => 'created DESC' });      
+    my $msg = $self->{cf}->make_control_message(
+    	"cif-db",
+		CIF::Msg::ControlType::MsgType::COMMAND(),
+		CIF::Msg::ControlType::CommandType::APIKEY_LIST(),
+	);
+	
+	$msg->{'apiKeyRequest'}->{'apikey'} =  ".*";
+	
+    $self->{cf}->send_multipart([$msg->encode()]);
+    my $_reply = $self->{cf}->recv_multipart();
+   	my $reply = CIF::Msg::ControlType->decode($_reply->[0]);
+    
+    if ($reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
+		cluck("APIKEYS_LIST failed");
+	}
+	
+	my @rv;
+	
+	my $akr_list = $reply->{apiKeyResponseList};
+	
+	if ($#$akr_list > -1) {
+		foreach my $akr (@$akr_list) {
+			my $groupsList = {};
+			
+			if (exists $akr->{groupsList}) {
+				foreach my $akg (@{$akr->{groupsList}}) {
+					$groupsList->{$akg->{groupid}} = $akg->{groupname};
+				}
+			}
+			
+			my $k = CIF::APIKey->new(
+				{
+					'uuid' => $akr->{apikey},
+					'uuid_alias' => $akr->{alias},
+					'description' => $akr->{description},
+					'parentid' => $akr->{parent},
+					'revoked' => $akr->{revoked},
+					'write' => $akr->{writeAccess},
+					'restricted_access' => $akr->{restrictedAccess},
+					'expires' => $akr->{expires},
+					'created' => $akr->{created},
+					'groupsMap' => $groupsList
+				}
+			);
+			push @rv, $k;
+		}
+	}
+	return @rv;    
 }
 
 sub user_from_key {

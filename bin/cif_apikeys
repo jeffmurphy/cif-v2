@@ -40,7 +40,7 @@ use CIF::Foundation;
 
 my %opts;
 getopt('E:G:g:k:u:c:R:h', \%opts);
-die(usage()) if($opts{'h'});
+die(usage()) if(exists $opts{'h'});
 
 my $user            = $opts{'u'};
 my $access          = $opts{'e'};
@@ -100,10 +100,6 @@ if($expires){
     die 'invalid `expires` timestamp'."\n\n".usage() unless($expires);
 }
 
-my $profile = CIF::Profile->new({
-    config  => $config,
-});
-
 my $cfg = new Config::Simple();
 $cfg->read($config);
 
@@ -118,8 +114,18 @@ my $cf = new CIF::Foundation( {
     }
  });
 
- $cf->requestsocket();
- $cf->register();
+$cf->requestsocket();
+
+if ( $cf->register() == 1 ) {
+	die "Failed to register with cif-router: " . $cf->get_error();
+}
+
+ 
+my $profile = CIF::Profile->new({
+    config  => $config,
+    cf      => $cf
+});
+ 
  
 if($add){
     die(usage()) unless($user);
@@ -140,12 +146,12 @@ if($add){
         if($opts{'d'}){
             $profile->group_remove({
                 key     => $key,
-                group   => $opts{'g'},
+                group   => split(/,/, $opts{'g'}),
             });
         } else {
             $profile->group_add({
                 key             => $key,
-                group           => $opts{'g'},
+                group           => split(/,/, $opts{'g'}),
                 group_default   => $opts{'G'},
             });
         }
@@ -208,9 +214,9 @@ my @recs = $profile->user_list({ user => $user });
 if($#recs > -1){
     my $t = Text::Table->new('userid','key','description','guid','default_guid','restricted access','write','revoked','expires','created');
     foreach (@recs){
-        my $groups = $profile->groups($_->uuid());
-        foreach my $g (@$groups){
-            my $default = $profile->group_default($_->uuid()) || 0;
+        my @groups = $_->groups();
+        foreach my $g (@groups){
+            my $default = $_->default() || 0;
             my $isDefaultGuid = ($g eq $default) ? 'true' : '';
             $t->load([$_->uuid_alias(),$_->uuid(),$_->description(),$g,$isDefaultGuid,$_->restricted_access(),$_->write(),$_->revoked(),$_->expires(),$_->created()]);
         }

@@ -1,34 +1,79 @@
 package CIF::APIKey;
-use base 'CIF::DBI';
+use Moose;
 
-__PACKAGE__->table('apikeys');
-__PACKAGE__->columns(Primary => 'uuid');
-__PACKAGE__->columns(All => qw/uuid uuid_alias description parentid revoked write restricted_access expires created/);
-__PACKAGE__->sequence('apikeys_id_seq');
-__PACKAGE__->has_many(groups  => 'CIF::APIKeyGroups');
+
+has 'uuid' => ( isa => 'Str', is => 'rw' ); 
+has 'uuid_alias' => ( isa => 'Str', is => 'rw' ); 
+has 'description' => ( isa => 'Str', is => 'rw' ); 
+has 'parentid' => ( isa => 'Str', is => 'rw' ); 
+has 'revoked' => ( isa => 'Str', is => 'rw' ); 
+has 'write' => ( isa => 'Bool', is => 'rw' ); 
+has 'restricted_access' => ( isa => 'Bool', is => 'rw' ); 
+has 'expires' => ( isa => 'Int', is => 'rw' ); 
+has 'created' => ( isa => 'Int', is => 'rw' ); 
+has 'groupsMap' => ( isa => 'HashRef[Str]', is => 'rw' );
+has 'default' => ( isa => 'Str', is => 'rw');
+
+
+use Carp qw(cluck);
 
 use CIF qw/is_uuid generate_uuid_random generate_uuid_url generate_uuid_ns/;
 
-# because UUID's are really primary keys too in our schema
-# this overrides some of the default functionality of Class::DBI and 'id'
+sub Xnew {
+	my $class = shift;
+    my $self = {};
+    bless $self, $class;
+    
+    my $p = shift;
+
+	for my $k (keys %$p) {
+		$self->set($k, $p->{$k});
+	}
+	
+    return $self;
+}
+
+
+sub groups {
+	my $self = shift;
+	if (exists $self->{groupsMap}) {
+		return keys %{$self->{groupsMap}};
+	}
+	return ();
+}
+
+=pod
+
+retrieve ('uuid' => $uuid)
+
+__PACKAGE__->columns(Primary => 'uuid');
+__PACKAGE__->columns(All => qw/uuid uuid_alias description parentid revoked write restricted_access expires created/);
+
+=cut
+
 sub retrieve {
     my $class = shift;
     my %keys = @_;
 
-    return $class->SUPER::retrieve(@_) unless($keys{'uuid'});
+    cluck "CIF::APIKey::retrieve()";
 
-    my @recs = $class->search(uuid => $keys{'uuid'});
-    return unless(@recs);
-    return($recs[0]);
+    return;
 }
+
+=pod
+
+add_groups($default_guid, [group list])
+
+=cut
 
 sub add_groups {
     my ($self,$default_guid,$groups) = @_;
-    if($default_guid){
+    
+    if ($default_guid){
         $default_guid = generate_uuid_url($default_guid) unless(is_uuid($default_guid));
     }
 
-    foreach (split(',',$groups)){
+    foreach (@$groups){
         $_ = generate_uuid_url($_) unless(is_uuid($_));
         my $isDefault = 1 if($default_guid && ($_ eq $default_guid));
         my $id = eval {
