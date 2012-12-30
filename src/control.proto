@@ -31,7 +31,12 @@ message PingRequest {
 message APIKeyRequest {
 	optional string apikey = 1;
 	optional string alias = 2;
-	repeated string groups = 3;
+	repeated string groupsList = 3;
+}
+
+message APIKeyGroup {
+	optional string groupname = 1;
+	optional string groupid = 2;
 }
 
 message APIKeyResponse {
@@ -42,9 +47,11 @@ message APIKeyResponse {
 	optional string description = 5;
 	optional int32 expires = 6; // timestamp,UTC 0=never 
 	optional bool revoked = 7;
-        repeated string groups = 8;
-        repeated string addedBy = 9;
-	repeated string restrictions = 10;
+        repeated APIKeyGroup groupsList = 8;
+        repeated string addedByList = 9;
+	repeated string restrictionsList = 10;
+	optional string parent = 11;
+	optional int32 created = 12;
 }
 
 message ControlType {
