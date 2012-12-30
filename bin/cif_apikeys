@@ -64,7 +64,7 @@ if($user){
 
 sub usage {
     return <<EOF;
-Usage: perl $0 -u joe\@example.com
+Usage: perl $0 -a -u joe\@example.com
 
 Basic:
     -h  --help:             this meessage
@@ -84,13 +84,13 @@ Advanced:
     -D  --desc:             give the key an optional description
 
 Examples:
-    \$> perl $0 -u joe\@example.com
-    \$> perl $0 -u joe\@example.com -a everyone,group2 -G everyone
+    \$> perl $0 -a -u joe\@example.com
+    \$> perl $0 -a -u joe\@example.com -g everyone,group2 -G everyone
     \$> perl $0 -d -k 96818121-f1b6-482e-8851-8fb49cb2f6c0
-    \$> perl $0 -u joe\@example.com -e infrastructure -a -a everyone -G everyone
+    \$> perl $0 -u joe\@example.com -e infrastructure -a -g everyone -G everyone
     \$> perl $0 -k 96818121-f1b6-482e-8851-8fb49cb2f6c0 -w
     \$> perl $0 -k 96818121-f1b6-482e-8851-8fb49cb2f6c0 -r
-    \$> perl $0 -u joe\@example.com -E 2020-12-30T23:59:59Z
+    \$> perl $0 -a -u joe\@example.com -E 2020-12-30T23:59:59Z
     \$> perl $0 -l
 EOF
 }
