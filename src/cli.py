@@ -113,7 +113,7 @@ except getopt.GetoptError, err:
 controlport = "5657"
 cifrouter = "sdev.nickelsoft.com:5555"
 myid = "cli(%s)" % (os.getlogin()) #, os.getpid())
-apikey = "1234567890abcdef"
+apikey = 'a2fd22c2-2f2b-477b-b45b-ba06719a0088'
 
 for o, a in opts:
     if o == "-c":
