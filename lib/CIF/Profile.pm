@@ -97,8 +97,34 @@ sub key_remove {
 	my $self = shift;
 	my $args = shift;
 
-	my @recs = CIF::APIKey->search( uuid => $args->{'key'} );
-	$_->delete() foreach (@recs);
+	my $msg = $self->{cf}->make_control_message(
+		"cif-db",
+		CIF::Msg::ControlType::MsgType::COMMAND(),
+		CIF::Msg::ControlType::CommandType::APIKEY_DEL(),
+	);
+
+
+	$msg->{'apiKeyRequest'} = {
+		'apikey'           => $args->{'key'},
+		'alias'            => '',
+		'description'      => '',
+		'restrictedAccess' => '',
+		'writeAccess'      => 0,
+		'parent'           => "",
+		'revoked'          => 0,
+		'expires'          => 0
+	};
+
+	$msg = $self->{cf}->add_seq($msg);
+
+	$self->{cf}->send_multipart( [ $msg->encode() ] );
+	my $_reply = $self->{cf}->recv_multipart();
+	my $reply  = CIF::Msg::ControlType->decode( $_reply->[0] );
+
+	if ( $reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() ) {
+		cluck("APIKEYS_DEL failed");
+	}
+	
 }
 
 sub key_toggle_write {
@@ -266,9 +292,35 @@ sub user_from_key {
 	my $self = shift;
 	my $args = shift;
 
-	my @r = CIF::APIKey->search( uuid => $args );
-	return unless ( $#r > -1 );
-	return $r[0]->uuid_alias();
+	my $msg = $self->{cf}->make_control_message(
+		"cif-db",
+		CIF::Msg::ControlType::MsgType::COMMAND(),
+		CIF::Msg::ControlType::CommandType::APIKEY_GET(),
+	);
+
+
+	$msg->{'apiKeyRequest'} = {
+		'apikey'           => $args,
+		'alias'            => '',
+		'description'      => '',
+		'restrictedAccess' => '',
+		'writeAccess'      => 0,
+		'parent'           => "",
+		'revoked'          => 0,
+		'expires'          => 0
+	};
+
+	$msg = $self->{cf}->add_seq($msg);
+
+	$self->{cf}->send_multipart( [ $msg->encode() ] );
+	my $_reply = $self->{cf}->recv_multipart();
+	my $reply  = CIF::Msg::ControlType->decode( $_reply->[0] );
+
+	if ( $reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() ) {
+		return;
+	}
+	
+	return $reply->{apiKeyResponse}->{apikey};
 }
 
 sub remove {
@@ -283,8 +335,36 @@ sub user_remove {
 	my $self = shift;
 	my $args = shift;
 
-	my @recs = CIF::APIKey->search( uuid_alias => $args->{'user'} );
-	$_->delete() foreach (@recs);
+	my $msg = $self->{cf}->make_control_message(
+		"cif-db",
+		CIF::Msg::ControlType::MsgType::COMMAND(),
+		CIF::Msg::ControlType::CommandType::APIKEY_DEL(),
+	);
+
+
+	$msg->{'apiKeyRequest'} = {
+		'apikey'           => '',
+		'alias'            => $args->{'user'},
+		'description'      => '',
+		'restrictedAccess' => '',
+		'writeAccess'      => 0,
+		'parent'           => "",
+		'revoked'          => 0,
+		'expires'          => 0
+	};
+
+	$msg = $self->{cf}->add_seq($msg);
+
+	$self->{cf}->send_multipart( [ $msg->encode() ] );
+	my $_reply = $self->{cf}->recv_multipart();
+	my $reply  = CIF::Msg::ControlType->decode( $_reply->[0] );
+
+	my $r = undef;
+
+	if ( $reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() ) {
+		cluck("APIKEYS_ADD failed");
+	}
+	
 }
 
 sub group_remove {
