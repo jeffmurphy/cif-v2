@@ -131,13 +131,37 @@ sub key_toggle_write {
 	my $self = shift;
 	my $args = shift;
 
-	my $k = CIF::APIKey->retrieve( uuid => $args->{'key'} );
-	return unless ($k);
+	my $kr = $self->key_get($args);
+		
+	if (defined($kr)) {
+		my $msg = $self->{cf}->make_control_message(
+			"cif-db",
+			CIF::Msg::ControlType::MsgType::COMMAND(),
+			CIF::Msg::ControlType::CommandType::APIKEY_UPDATE(),
+		);
+	
+		if ( $kr->{'apiKeyResponseList'}->[0]->{'writeAccess'} == 1 ) {
+			$msg->{'apiKeyRequest'}->{'writeAccess'} = 0;
+		}
+		else {
+			$msg->{'apiKeyRequest'}->{'writeAccess'} = 1;
+		}
+		$msg->{'apiKeyRequest'}->{'apikey'} = $kr->{'apiKeyRequest'}->{'apikey'};
+		
+		$msg = $self->{cf}->add_seq($msg);		
+		
+		$self->{cf}->send_multipart( [ $msg->encode() ] );
+		my $_reply = $self->{cf}->recv_multipart();
+		my $reply  = CIF::Msg::ControlType->decode( $_reply->[0] );
+	
+		if ( $reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() ) {
+			cluck("APIKEYS_UPDATE failed");
+			return -1;
+		} 
+		return 1;
+	}
 
-	my $val = 0;
-	$val = 1 unless ( $k->write() );
-	$k->write($val);
-	return $k->update();
+	return -1;
 }
 
 sub key_toggle_revoke {
@@ -153,12 +177,13 @@ sub key_toggle_revoke {
 			CIF::Msg::ControlType::CommandType::APIKEY_UPDATE(),
 		);
 	
-#		foreach my $f (keys %{$kr->{apiKeyResponseList}->[0]}) {
-#			$msg->{apiKeyRequest}->{$f} = $kr->{apiKeyResponse}->[0]->{$f};
-#		}
-
-	
-		$msg->{'apiKeyRequest'}->{'revoked'} = ! $kr->{'apiKeyResponseList'}->[0]->{'revoked'};
+		if ( $kr->{'apiKeyResponseList'}->[0]->{'revoked'} == 1 ) {
+			$msg->{'apiKeyRequest'}->{'revoked'} = 0;
+		}
+		else {
+			$msg->{'apiKeyRequest'}->{'revoked'} = 1;
+		}
+		
 		$msg->{'apiKeyRequest'}->{'apikey'} = $kr->{'apiKeyRequest'}->{'apikey'};
 		
 		$msg = $self->{cf}->add_seq($msg);
