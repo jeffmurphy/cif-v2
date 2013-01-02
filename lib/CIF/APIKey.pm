@@ -19,20 +19,6 @@ use Carp qw(cluck);
 
 use CIF qw/is_uuid generate_uuid_random generate_uuid_url generate_uuid_ns/;
 
-sub Xnew {
-	my $class = shift;
-    my $self = {};
-    bless $self, $class;
-    
-    my $p = shift;
-
-	for my $k (keys %$p) {
-		$self->set($k, $p->{$k});
-	}
-	
-    return $self;
-}
-
 
 sub groups {
 	my $self = shift;

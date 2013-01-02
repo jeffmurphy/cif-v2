@@ -144,24 +144,63 @@ sub key_toggle_revoke {
 	my $self = shift;
 	my $args = shift;
 
-	my $k = CIF::APIKey->retrieve( uuid => $args->{'key'} );
-	return unless ($k);
+	my $kr = $self->key_get($args);
+	
+	if (defined($kr)) {
+		my $msg = $self->{cf}->make_control_message(
+			"cif-db",
+			CIF::Msg::ControlType::MsgType::COMMAND(),
+			CIF::Msg::ControlType::CommandType::APIKEY_UPDATE(),
+		);
+	
+#		foreach my $f (keys %{$kr->{apiKeyResponseList}->[0]}) {
+#			$msg->{apiKeyRequest}->{$f} = $kr->{apiKeyResponse}->[0]->{$f};
+#		}
 
-	my $val = 0;
-	$val = 1 unless ( $k->revoked() );
-	$k->revoked($val);
-	return $k->update();
+	
+		$msg->{'apiKeyRequest'}->{'revoked'} = ! $kr->{'apiKeyResponseList'}->[0]->{'revoked'};
+		$msg->{'apiKeyRequest'}->{'apikey'} = $kr->{'apiKeyRequest'}->{'apikey'};
+		
+		$msg = $self->{cf}->add_seq($msg);
+		
+		$self->{cf}->send_multipart( [ $msg->encode() ] );
+		my $_reply = $self->{cf}->recv_multipart();
+		my $reply  = CIF::Msg::ControlType->decode( $_reply->[0] );
+	
+		if ( $reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() ) {
+			cluck("APIKEYS_UPDATE failed");
+			return -1;
+		} 
+		return 1;
+	}
+
+	return -1;
 }
 
 sub key_set_expires {
 	my $self = shift;
 	my $args = shift;
 
-	my $k = CIF::APIKey->retrieve( uuid => $args->{'key'} );
-	return unless ($k);
 
-	$k->expires( $args->{'expires'} );
-	return $k->update();
+	my $msg = $self->{cf}->make_control_message(
+		"cif-db",
+		CIF::Msg::ControlType::MsgType::COMMAND(),
+		CIF::Msg::ControlType::CommandType::APIKEY_UPDATE(),
+	);
+
+	$msg->{'apiKeyRequest'}->{'apikey'} = $args->{'key'};
+	$msg->{'apiKeyRequest'}->{'expires'} = $args->{'expires'};
+	$msg = $self->{cf}->add_seq($msg);
+
+	$self->{cf}->send_multipart( [ $msg->encode() ] );
+	my $_reply = $self->{cf}->recv_multipart();
+	my $reply  = CIF::Msg::ControlType->decode( $_reply->[0] );
+
+	if ( $reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() ) {
+		cluck("APIKEYS_UPDATE failed");
+		return -1;
+	} 
+	return 1;
 }
 
 sub user_add {
@@ -252,41 +291,78 @@ sub user_list {
 
 	if ( $reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() ) {
 		cluck("APIKEYS_LIST failed");
+	} 
+	else {
+		my @rv;
+	
+		my $akr_list = $reply->{apiKeyResponseList};
+	
+		if ( $#$akr_list > -1 ) {
+			foreach my $akr (@$akr_list) {
+				my $groupsList = {};
+	
+				if ( exists $akr->{groupsList} ) {
+					foreach my $akg ( @{ $akr->{groupsList} } ) {
+						$groupsList->{ $akg->{groupid} } = $akg->{groupname};
+					}
+				}
+	
+				my $k = CIF::APIKey->new(
+					{
+						'uuid'              => $akr->{apikey},
+						'uuid_alias'        => $akr->{alias},
+						'description'       => $akr->{description},
+						'parentid'          => $akr->{parent},
+						'revoked'           => $akr->{revoked},
+						'write'             => $akr->{writeAccess},
+						'restricted_access' => $akr->{restrictedAccess},
+						'expires'           => $akr->{expires},
+						'created'           => $akr->{created},
+						'groupsMap'         => $groupsList
+					}
+				);
+				
+				push @rv, $k;
+			}
+		}
+		
+		return @rv;
 	}
+}
 
-	my @rv;
+sub key_get {
+	my $self = shift;
+	my $args = shift;
+
+	my $msg = $self->{cf}->make_control_message(
+		"cif-db",
+		CIF::Msg::ControlType::MsgType::COMMAND(),
+		CIF::Msg::ControlType::CommandType::APIKEY_GET(),
+	);
+
+	$msg->{'apiKeyRequest'}->{'apikey'} = $args->{'key'};
+	$msg = $self->{cf}->add_seq($msg);
+
+	$self->{cf}->send_multipart( [ $msg->encode() ] );
+	my $_reply = $self->{cf}->recv_multipart();
+	my $reply  = CIF::Msg::ControlType->decode( $_reply->[0] );
+
+	if ( $reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() ) {
+		cluck("APIKEYS_GET failed");
+		return undef;
+	} 
+	
 
 	my $akr_list = $reply->{apiKeyResponseList};
 
-	if ( $#$akr_list > -1 ) {
-		foreach my $akr (@$akr_list) {
-			my $groupsList = {};
-
-			if ( exists $akr->{groupsList} ) {
-				foreach my $akg ( @{ $akr->{groupsList} } ) {
-					$groupsList->{ $akg->{groupid} } = $akg->{groupname};
-				}
-			}
-
-			my $k = CIF::APIKey->new(
-				{
-					'uuid'              => $akr->{apikey},
-					'uuid_alias'        => $akr->{alias},
-					'description'       => $akr->{description},
-					'parentid'          => $akr->{parent},
-					'revoked'           => $akr->{revoked},
-					'write'             => $akr->{writeAccess},
-					'restricted_access' => $akr->{restrictedAccess},
-					'expires'           => $akr->{expires},
-					'created'           => $akr->{created},
-					'groupsMap'         => $groupsList
-				}
-			);
-			push @rv, $k;
-		}
+	if ( $#$akr_list == 0 ) {
+		return $reply;
 	}
-	return @rv;
+	
+	cluck ("Didnt get back exactly 1 apiKeyResponseList object: " . ($#$akr_list + 1));
+	return undef;
 }
+
 
 sub user_from_key {
 	my $self = shift;
