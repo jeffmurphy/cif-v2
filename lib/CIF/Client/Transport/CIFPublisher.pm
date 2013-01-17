@@ -1,4 +1,4 @@
-package CIF::Client::CIFPublisher;
+package CIF::Client::Transport::CIFPublisher;
 use base 'Class::Accessor';
 
 use strict;
