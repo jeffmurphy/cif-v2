@@ -93,34 +93,33 @@ message ControlType {
     	APIKEY_ADD     = 11;
     	APIKEY_UPDATE  = 12;
     	APIKEY_DEL     = 13;
-    	APIKEY_REVOKE  = 14;
-    	APIKEY_LIST    = 15;
-    	APIKEY_GET     = 16;
+    	APIKEY_LIST    = 14;
+    	APIKEY_GET     = 15;
     	
-    	APIKEY_GROUPS_ADD    = 17;
-    	APIKEY_GROUPS_UPDATE = 18;
-    	APIKEY_GROUPS_DEL    = 19;
-    	APIKEY_GROUPS_REVOKE = 20;
-    	APIKEY_GROUPS_LIST   = 21;
-    	APIKEY_GROUPS_GET    = 22;
+    	APIKEY_GROUPS_ADD    = 16;
+    	APIKEY_GROUPS_UPDATE = 17;
+    	APIKEY_GROUPS_DEL    = 18;
+    	APIKEY_GROUPS_LIST   = 19;
+    	APIKEY_GROUPS_GET    = 20;
     }
     
-    optional double version       = 1 [default = 20121230.00];
+    optional double version      = 1 [default = 20130103.00];
     optional bytes seq           = 2; // used to match commands to replies, must be preserved in replies 
     optional string dst          = 3;
     optional string src          = 4;
     optional StatusType status   = 5;
-    optional MsgType type        = 6;
-    optional CommandType command = 7;
+    optional string  statusMsg   = 6;
+    optional MsgType type        = 7;
+    optional CommandType command = 8;
     
-    optional string apikey       = 8;
+    optional string apikey       = 9;
     
-	optional RegisterResponse    registerResponse    =  9;
-	optional IPublishRequest     iPublishRequest     = 10;
-	optional ListClientsResponse listClientsResponse = 11;
-	optional PingRequest         pingRequest         = 12;
-	optional APIKeyRequest       apiKeyRequest       = 13;
-	repeated APIKeyResponse      apiKeyResponseList  = 14;
+    optional RegisterResponse    registerResponse    = 10;
+    optional IPublishRequest     iPublishRequest     = 11;
+    optional ListClientsResponse listClientsResponse = 12;
+    optional PingRequest         pingRequest         = 13;
+    optional APIKeyRequest       apiKeyRequest       = 14;
+    repeated APIKeyResponse      apiKeyResponseList  = 15;
 }
 
 
