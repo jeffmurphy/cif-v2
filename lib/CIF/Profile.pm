@@ -70,7 +70,7 @@ sub key_add {
 	my $r = undef;
 
 	if ( $reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() ) {
-		cluck("APIKEYS_ADD failed");
+		cluck("APIKEYS_ADD failed: " . $reply->{statusMsg});
 	}
 	else {
 		my $akr = $msg->{'apiKeyRequest'};
@@ -528,7 +528,7 @@ sub group_add {
 
 	if ($reply->get_status != CIF::Msg::ControlType::StatusType::SUCCESS() )
 	{
-		cluck("APIKEYS_UPDATE failed");
+		cluck("APIKEYS_UPDATE failed: " . $reply->{statusMsg});
 	}
 
 
