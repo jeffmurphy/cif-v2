@@ -186,15 +186,17 @@ sub new {
     my $self = {};
     bless($self,$class);
     
-    $self->{D} = 0;
-#    cluck("CONFIG " .Dumper($args));
+    $self->{D} = 1;
+   cluck("CONFIG " .Dumper($args));
 	
     $self->{'controlport'} = $args->{config}->{'zmq_controlport'};
     $self->{'publisherport'} = $args->{config}->{'zmq_publisherport'};
     $self->{'cifrouter'} = $args->{config}->{'zmq_cifrouter'};
     $self->{'myid'} = $args->{config}->{'zmq_myid'};
     $self->{'myname'} = $self->myip() . ":" . $self->{publisherport} . "|" . $self->{myid};
-    $self->{'apikey'} = $args->{basecfg}->{apikey};
+    $self->{'apikey'} = $args->{config}->{apikey};
+    
+    print "apikey " . $self->{'apikey'};
     
     # $self->{cf} = new CIF::Foundation(
 	# {
