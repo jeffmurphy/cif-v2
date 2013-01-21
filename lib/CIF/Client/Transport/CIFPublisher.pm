@@ -93,7 +93,7 @@ sub register {
 #    msg.dst = 'cif-router'
 #    msg.src = myid
     
-    my $cm = CIF::Msg::ControlType->encode({
+    my $cm = CIF::Msg::ControlType->new({
 		type => CIF::Msg::ControlType::MsgType::COMMAND(),
 		command => CIF::Msg::ControlType::CommandType::REGISTER(),
 		src => 'cif-smrt',
@@ -104,7 +104,7 @@ sub register {
     
     print "Sending REGISTER command\n" if $self->{D};
 	
-	$self->send_multipart([$cm]);
+	$self->send_multipart([$self->add_seq($cm)->encode()]);
 
 	print "Waiting for reply\n" if $self->{D};
 	
@@ -128,7 +128,7 @@ sub register {
 		$cm->{'iPublishRequest'}->{'ipaddress'} = $self->myip();
 		$cm->{'iPublishRequest'}->{'port'} = $self->{'publisherport'};
 		
-		$self->send_multipart([$cm->encode()]);
+		$self->send_multipart([$self->add_seq($cm)->encode()]);
 		$reply = $self->recv_multipart();
 		$cm = CIF::Msg::ControlType->decode($reply->[0]);
 		
@@ -147,7 +147,7 @@ sub register {
 sub unregister {
 	my $self = shift;
 	
-	my $cm = CIF::Msg::ControlType->encode({
+	my $cm = CIF::Msg::ControlType->new({
 		type => CIF::Msg::ControlType::MsgType::COMMAND(),
 		command => CIF::Msg::ControlType::CommandType::UNREGISTER(),
 		src => 'cif-smrt',
@@ -156,7 +156,7 @@ sub unregister {
 		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
 	});
     
-	$self->send_multipart([$cm, '']);
+	$self->send_multipart([$self->add_seq($cm)->encode(), '']);
 
 	my $reply = $self->recv_multipart();
 	$cm = CIF::Msg::ControlType->decode($reply->[0]);
@@ -187,7 +187,6 @@ sub new {
     bless($self,$class);
     
     $self->{D} = 1;
-   cluck("CONFIG " .Dumper($args));
 	
     $self->{'controlport'} = $args->{config}->{'zmq_controlport'};
     $self->{'publisherport'} = $args->{config}->{'zmq_publisherport'};
@@ -233,10 +232,12 @@ sub __DESTROY__ {
 
 sub send {
     my $self = shift;
-    my $data = shift;
-    return unless(defined($data));
+    my $msg = shift;
+    return unless(defined($msg));
 
-    my $rv = zmq_send($self->{publisher}, $data);
+    my $rv = zmq_send($self->{publisher}, 
+    				  $self->add_seq($msg));
+
     confess("failed to zmq_send the message") if $rv;
     
     my $rm = CIF::Msg::MessageType->encode({
@@ -245,5 +246,15 @@ sub send {
     });
     return (undef, $rm);
 }
+
+use Digest::MD5 qw(md5 md5_hex md5_base64);
+
+sub add_seq {
+	my $self = shift;
+	my $cm = shift;
+	$cm->{seq} = md5($cm->encode());
+	return $cm;	
+}
+
 
 1;

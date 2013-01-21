@@ -235,7 +235,8 @@ sub search {
 sub send {
     my $self = shift;
     my $msg = shift;
-    
+    use Carp qw(cluck);
+    cluck("here");
     return $self->get_driver->send($msg);
 }
 
@@ -253,7 +254,8 @@ sub submit {
         data    => $data,
     });
     
-    my ($err,$ret) = $self->send($msg->encode());
+    my ($err,$ret) = $self->send($msg);
+    
     return('ERROR: server failure, contact system administrator') unless($ret);
     
     $ret = CIF::Msg::MessageType->decode($ret);
