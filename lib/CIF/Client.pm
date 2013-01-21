@@ -243,9 +243,9 @@ sub submit {
     my $self = shift;
     my $data = shift;
     
-    my $msg = MessageType->new({
+    my $msg = CIF::Msg::MessageType->new({
         version => $CIF::VERSION,
-        type    => MessageType::MsgType::SUBMISSION(),
+        type    => CIF::Msg::MessageType::MsgType::SUBMISSION(), 
         apikey  => $self->get_apikey(),
         # encode it here, message type only knows about bytes
         ## TODO -- the Query Packet should have each of these attributes (confidence, nolog, guid, limit)
@@ -256,11 +256,11 @@ sub submit {
     my ($err,$ret) = $self->send($msg->encode());
     return('ERROR: server failure, contact system administrator') unless($ret);
     
-    $ret = MessageType->decode($ret);
+    $ret = CIF::Msg::MessageType->decode($ret);
     
-    unless($ret->get_status() == MessageType::StatusType::SUCCESS()){
-        return('ERROR: '.@{$ret->get_data()}[0]) if($ret->get_status() == MessageType::StatusType::FAILED());
-        return('ERROR: unauthorized') if($ret->get_status() == MessageType::StatusType::UNAUTHORIZED());
+    unless($ret->get_status() == CIF::Msg::MessageType::StatusType::SUCCESS()){
+        return('ERROR: '.@{$ret->get_data()}[0]) if($ret->get_status() == CIF::Msg::MessageType::StatusType::FAILED());
+        return('ERROR: unauthorized') if($ret->get_status() == CIF::Msg::MessageType::StatusType::UNAUTHORIZED());
     }
     
     return (undef,$ret);
@@ -273,13 +273,16 @@ sub new_submission {
     my $data = (ref($args->{'data'}) eq 'ARRAY') ? $args->{'data'} : [$args->{'data'}];
     
     foreach (@$data){
+    	#print "\n\n************data:********\n\n $_\n";
         $_ = encode_base64(Compress::Snappy::compress($_));
     }
     
-    my $msg = MessageType::SubmissionType->new({
-        guid    => $args->{'guid'},
-        data    => $data,
-    });
-    return $msg->encode();
+    return $data;
+    
+    #my $msg = MessageType::SubmissionType->new({
+    #    guid    => $args->{'guid'},
+    #    data    => $data,
+    #});
+    #return $msg->encode();
 }
 1;
