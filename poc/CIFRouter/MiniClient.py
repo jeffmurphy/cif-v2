@@ -148,13 +148,13 @@ class MiniClient(object):
         req = APIKeys.makerequest(self.myid, "cif-db", apikey, control_pb2.ControlType.APIKEY_GET)
         req.apikey = self.myapikey
         req.seq = APIKeys.makeseq(req)
-        print "fetch_apikey: sending to cif-db: ", req
+        #print "fetch_apikey: sending to cif-db: ", req
     
         self.cf.sendmsg(req, self.fetch_apikey_finished)
         
     def fetch_apikey_finished(self, msg):
-        print "fetch_apikey_finished: ", msg
-        print " "
+        #print "fetch_apikey_finished: ", msg
+        #print " "
         
         if msg.status == control_pb2.ControlType.SUCCESS:
             self.pending_apikey_replies_lock.acquire()
