@@ -236,7 +236,6 @@ sub send {
     my $self = shift;
     my $msg = shift;
     use Carp qw(cluck);
-    cluck("here");
     return $self->get_driver->send($msg);
 }
 
@@ -245,15 +244,12 @@ sub submit {
     my $data = shift;
     
     my $msg = CIF::Msg::MessageType->new({
-        version => $CIF::VERSION,
+    	version => CIF::Msg::Support::getOurVersion("Message"),
         type    => CIF::Msg::MessageType::MsgType::SUBMISSION(), 
         apikey  => $self->get_apikey(),
-        # encode it here, message type only knows about bytes
-        ## TODO -- the Query Packet should have each of these attributes (confidence, nolog, guid, limit)
-        ## query shouldn't be repated the QueryType should foreach ($args->{'query'})
-        data    => $data,
+		submissionRequest => $data
     });
-    
+        
     my ($err,$ret) = $self->send($msg);
     
     return('ERROR: server failure, contact system administrator') unless($ret);
