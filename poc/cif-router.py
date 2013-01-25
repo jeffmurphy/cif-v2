@@ -59,18 +59,22 @@ from CIFRouter.MiniClient import *
 
 myname = "cif-router"
 
-def dosubscribe(m):
-    if m.src in publishers :
+def dosubscribe(client, m):
+    client = m.src
+    if client in publishers :
         print "dosubscribe: we've seen this client before. re-using old connection."
-        return validate_apikey(m.apikey)
-    elif validate_apikey(m.apikey) == control_pb2.ControlType.SUCCESS:
-        print "dosubscribe: New publisher to connect to " + msg.src
-        publishers[m.src] = time.time()
-        addr = m.iPublishRequest.ipaddress
-        port = m.iPublishRequest.port
-        print "dosubscribe: connect our xsub -> xpub on " + addr + ":" + str(port)
-        xsub.connect("tcp://" + addr + ":" + str(port))
         return control_pb2.ControlType.SUCCESS
+    elif clients.isregistered(client) == True:
+        if clients.apikey(client) == m.apikey:
+            print "dosubscribe: New publisher to connect to " + client
+            publishers[client] = time.time()
+            addr = m.iPublishRequest.ipaddress
+            port = m.iPublishRequest.port
+            print "dosubscribe: connect our xsub -> xpub on " + addr + ":" + str(port)
+            xsub.connect("tcp://" + addr + ":" + str(port))
+            return control_pb2.ControlType.SUCCESS
+        print "dosubscribe: iPublish from a registered client with a bad apikey: " + client + " " + m.apikey
+    print "dosubscribe: iPublish from a client who isnt registered: \"" + client + "\""
     return control_pb2.ControlType.FAILED
 
 def list_clients(client, apikey):
@@ -85,7 +89,8 @@ def make_register_reply(msgfrom, _apikey):
     msg.command = control_pb2.ControlType.REGISTER
     msg.dst = msgfrom
     msg.src = "cif-router"
-    msg.apikey = apikey
+    print "mrr " + _apikey
+    msg.apikey = _apikey
 
     return msg
 
@@ -96,7 +101,7 @@ def make_unregister_reply(msgfrom, _apikey):
     msg.command = control_pb2.ControlType.UNREGISTER
     msg.dst = msgfrom
     msg.src = "cif-router"
-    msg.apikey = apikey
+    msg.apikey = _apikey
 
     return msg
 
@@ -171,26 +176,30 @@ def myrelay(pubport):
     xpub.bind("tcp://*:" + str(pubport))
     
     while True:
-        relaycount = relaycount + 1
-        m = xsub.recv()
-        
-        _m = msg_pb2.MessageType()
-        _m.ParseFromString(m)
-        
-        if _m.type == msg_pb2.MessageType.QUERY:
-            mystats.setrelayed(1, 'QUERY')
-        elif _m.type == msg_pb2.MessageType.REPLY:
-            mystats.setrelayed(1, 'REPLY')
-        elif _m.type == msg_pb2.MessageType.SUBMISSION:
-            mystats.setrelayed(1, 'SUBMISSION')
+        try:
+            relaycount = relaycount + 1
+            m = xsub.recv()
             
-            for bmt in _m.submissionRequest:
-                mystats.setrelayed(1, bmt.baseObjectType)
+            _m = msg_pb2.MessageType()
+            _m.ParseFromString(m)
+            
+            if _m.type == msg_pb2.MessageType.QUERY:
+                mystats.setrelayed(1, 'QUERY')
+            elif _m.type == msg_pb2.MessageType.REPLY:
+                mystats.setrelayed(1, 'REPLY')
+            elif _m.type == msg_pb2.MessageType.SUBMISSION:
+                mystats.setrelayed(1, 'SUBMISSION')
                 
+                for bmt in _m.submissionRequest:
+                    mystats.setrelayed(1, bmt.baseObjectType)
+                    
+    
+            print "[myrelay] " + str(relaycount) + " recvd(" + str(len(m)) + " bytes)"
+            #print "[myrelay] got msg on our xsub socket: " , m
+            xpub.send(m)
 
-        print "[myrelay] " + str(relaycount) + " recvd(" + str(len(m)) + " bytes)"
-        #print "[myrelay] got msg on our xsub socket: " , m
-        xpub.send(m)
+        except Exception as e:
+            print "[myrelay] invalid message received: ", e
     
 def usage():
     print "cif-router [-r routerport] [-p pubport] [-m myid] [-a myapikey] [-dn dbname] [-dk dbkey] [-h]"
@@ -400,7 +409,7 @@ try:
                                 elif msgcommand == control_pb2.ControlType.IPUBLISH:
                                      print "IPUBLISH from: " + msgfrom
                                      if open_for_business == True:
-                                         rv = dosubscribe(msg)
+                                         rv = dosubscribe(from_zmqid, msg)
                                          msg.status = rv
                                          socket.send_multipart( [from_zmqid, '', msg.SerializeToString()] )
                             else:
