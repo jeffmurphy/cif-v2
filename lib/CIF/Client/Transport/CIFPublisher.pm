@@ -123,6 +123,9 @@ sub register {
 		# tell the router that we're a publisher so it will subscribe to us
 	
 		print "Send IPUBISH to cif-router\n" if $self->{D};
+		my $tmp = $cm->{'src'};
+		$cm->{'src'} = $cm->{'dst'};
+		$cm->{'dst'} = $tmp;
 		$cm->set_command(CIF::Msg::ControlType::CommandType::IPUBLISH());
 		$cm->set_type(CIF::Msg::ControlType::MsgType::COMMAND());
 		$cm->{'iPublishRequest'}->{'ipaddress'} = $self->myip();
@@ -236,7 +239,7 @@ sub send {
     return unless(defined($msg));
 
     my $rv = zmq_send($self->{publisher}, 
-    				  $self->add_seq($msg));
+    				  $self->add_seq($msg)->encode());
 
     confess("failed to zmq_send the message") if $rv;
     

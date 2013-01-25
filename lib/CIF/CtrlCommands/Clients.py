@@ -27,6 +27,7 @@ class Clients:
         see the same client more than once, we dont call connect() again.
         """
         with self._lock:
+            print "Clients.register(): registering \"" + client_name + "\""
             self._clients[client_name] = time.time()
             self._apikeys[client_name] = apikey
             self._zmqid[client_name] = zmq_identity
