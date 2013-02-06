@@ -11,13 +11,21 @@ $VERSION = eval $VERSION;  # see L<perlmodstyle>
 
 # we're using ipc instead of inproc cause perl sucks
 # at sharing context's with certain types of sockets (ZMQ_PUSH in particular)
-use constant WORKER_CONNECTION  => 'ipc://workers';
-use constant RETURN_CONNECTION  => 'ipc://return';
-use constant SENDER_CONNECTION  => 'ipc://sender';
-use constant CTRL_CONNECTION    => 'ipc://ctrl';
+use constant WORKER_CONNECTION      => 'ipc://workers';
+# this is used to return back the total sum of recs processed by the analytics
+# i'm sure there's a better way to do this
+use constant WORKER_SUM_CONNECTION  => 'ipc://workers_sum';
+use constant RETURN_CONNECTION      => 'ipc://return';
+use constant SENDER_CONNECTION      => 'ipc://sender';
+use constant CTRL_CONNECTION        => 'ipc://ctrl';
 
 # for figuring out throttle
 use constant DEFAULT_THROTTLE_FACTOR => 4;
+
+# default severity mapping
+use constant DEFAULT_SEVERITY_MAP => {
+    botnet      => 'high',
+};
 
 use Regexp::Common qw/net URI/;
 use Regexp::Common::net::CIDR;
@@ -25,10 +33,14 @@ use Encode qw/encode_utf8/;
 use Data::Dumper;
 use File::Type;
 use Module::Pluggable require => 1;
-use Digest::SHA1 qw/sha1_hex/;
+use Digest::SHA qw/sha1_hex/;
 use URI::Escape;
 use Try::Tiny;
-use CIF qw/debug/;
+
+use Net::SSLeay;
+Net::SSLeay::SSLeay_add_ssl_algorithms();
+
+use CIF qw/generate_uuid_url generate_uuid_random is_uuid debug normalize_timestamp/;
 
 use Time::HiRes qw/nanosleep/;
 use ZeroMQ qw/:all/;
@@ -38,15 +50,13 @@ use ZeroMQ qw/:all/;
 # the higher the thread count, the higher this number needs to be
 use constant NSECS_PER_MSEC     => 1_000_000;
 
-use CIF qw/generate_uuid_url generate_uuid_random is_uuid/;
-require CIF::Client;
-
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(qw(
     config db_config feeds_config feeds threads 
     entries defaults feed rules load_full goback 
     client wait_for_server name instance 
-    batch_control client_config postprocess
+    batch_control client_config postprocess apikey
+    severity_map proxy
 ));
 
 my @preprocessors = __PACKAGE__->plugins();
@@ -77,19 +87,21 @@ sub init {
       
     ($err,$ret) = $self->init_rules($args);
     return($err) if($err);
-    
+        
     $self->set_threads(         $args->{'threads'}          || $self->get_config->{'threads'}           || 1);
     $self->set_goback(          $args->{'goback'}           || $self->get_config->{'goback'}            || 3);
     $self->set_load_full(       $args->{'load_full'}        || $self->get_config->{'load_full'}         || 0);
     $self->set_wait_for_server( $args->{'wait_for_server'}  || $self->get_config->{'wait_for_server'}   || 0);
-    $self->set_batch_control(   $args->{'batch_control'}    || $self->get_config->{'batch_control'}     || 5000); # arbitrary
-    
+    $self->set_batch_control(   $args->{'batch_control'}    || $self->get_config->{'batch_control'}     || 10000); # arbitrary
+    $self->set_apikey(          $args->{'apikey'}           || $self->get_config->{'apikey'}            || return('missing apikey'));
+    $self->set_proxy(           $args->{'proxy'}            || $self->get_config->{'proxy'});
+   
     $self->init_postprocessors($args);
     
     if($self->get_postprocess()){
-        warn 'postprocessing enabled...' if($::debug);
+        debug('postprocessing enabled...') if($::debug);
     } else {
-        warn 'postprocessing disabled...' if($::debug);
+        debug('postprocessing disabled...') if($::debug);
     }
     
     $self->set_goback(time() - ($self->get_goback() * 84600));
@@ -133,13 +145,26 @@ sub init_config {
     # do this here, we'll do the setup within the sender_routine (thread)
     $self->set_client_config($args->{'config'});
     
-    $args->{'config'} = Config::Simple->new($args->{'config'}) || return(undef,'missing config file');
+    $args->{'config'} = Config::Simple->new($args->{'config'}) || return('missing config file');
     
     $self->set_config(          $args->{'config'}->param(-block => 'cif_smrt'));
-        
-    $self->set_db_config($args->{'config'}->param(-block => 'db'));
-    $self->set_feeds_config($args->{'config'}->param(-block => 'cif_feeds'));
+    $self->set_db_config(       $args->{'config'}->param(-block => 'db'));
+    $self->set_feeds_config(    $args->{'config'}->param(-block => 'cif_feeds'));
+    
+    $self->init_config_severity($args);
+    
     return(undef,1);
+}
+
+sub init_config_severity {
+    my $self = shift;
+    my $args = shift;
+    
+    my $map = $args->{'config'}->param(-block => 'cif_smrt_severity');
+    $map = DEFAULT_SEVERITY_MAP() unless(keys %$map);
+    
+    $self->set_severity_map($map);
+    
 }
 
 sub init_rules {
@@ -231,7 +256,10 @@ sub _pull_feed {
     foreach(@pulls){
         my ($err,$ret) = $_->pull($f);
         return('ERROR: '.$err) if($err);
-        return($ret) if($ret);
+        
+        # we don't want to error out if there's just no content
+        next unless(defined($ret));
+        return($ret);
     }
     return('ERROR: could not pull feed');
 }
@@ -241,6 +269,10 @@ sub _pull_feed {
 sub parse {
     my $self = shift;
     my $f = $self->get_rules();
+    
+    if($self->get_proxy()){
+        $f->{'proxy'} = $self->get_proxy();
+    }
     
     my ($err,$content) = pull_feed($f);
     return($err) if($err);
@@ -253,7 +285,13 @@ sub parse {
             $return = CIF::Smrt::ParseDelim::parse($f,$content,$d);
         } else {
             # try to auto-detect the file
-            if($content =~ /<\?xml version=/){
+            debug('testing...');
+            ## todo -- very hard to detect iodef-pb strings
+            # might have to rely on base64 encoding decode first?
+            if($content =~ /^application\/base64\+snappy\+pb\+iodef\n([\S\n]+)\n$/){
+                require CIF::Smrt::ParsePbIodef;
+                $return = CIF::Smrt::ParsePbIodef::parse($f,$content);
+            } elsif($content =~ /<\?xml version=/){
                 if($content =~ /<rss version=/ && !$f->{'nodes'}){
                     require CIF::Smrt::ParseRss;
                     $return = CIF::Smrt::ParseRss::parse($f,$content);
@@ -307,21 +345,23 @@ sub _decode {
 
 sub preprocess_routine {
     my $self = shift;
-    
-    warn 'parsing...' if($::debug);
+
+    debug('parsing...') if($::debug);
     my ($err,$recs) = $self->parse();
     return($err) if($err);
-    debug(Dumper($recs)) if($::debug > 10);
+    
+    debug('parsed records: '."\n".Dumper($recs)) if($::debug > 9);
     
     return unless($#{$recs} > -1);
     
-    if($self->get_goback()){    
-        warn 'sorting '.($#{$recs}+1).' recs...' if($::debug);
+    if($self->get_goback()){
+        debug('sorting '.($#{$recs}+1).' recs...') if($::debug);
         $recs = _sort_detecttime($recs);
     }
     ## TODO -- move this to the threads?
     ## test with alienvault scan's feed
-    warn 'mapping...' if($::debug);
+    debug('mapping...') if($::debug);
+    
     my @array;
     foreach my $r (@$recs){
         foreach my $key (keys %$r){
@@ -337,12 +377,21 @@ sub preprocess_routine {
         foreach my $p (@preprocessors){
             $r = $p->process($self->get_rules(),$r);
         }
+        
+        # TODO -- work-around, make this more configurable
+        unless($r->{'severity'}){
+            $r->{'severity'} = ($self->get_severity_map->{$r->{'assessment'}}) ? $self->get_severity_map->{$r->{'assessment'}} : 'medium';
+        }
             
         ## TODO -- if we do this, we need to degrade the count somehow...
-        last if($r->{'dt'} < $self->get_goback());
+        last if($r->{'reporttime_epoch'} < $self->get_goback());
         push(@array,$r);
     }
-    warn 'done mapping...' if($::debug);
+    debug('done mapping...') if($::debug);
+    debug('records to be processed: '.($#array+1)) if($::debug);
+    if($#array == -1){
+        debug('your goback is too small, if you want records, increase the goback time') if($::debug);
+    }
 
     return(undef,\@array);
 }
@@ -352,7 +401,7 @@ sub process {
     my $args = shift;
     
     # do this first so the threads don't copy the recs into their mem
-    warn 'setting up zmq interfaces...' if($::debug);
+    debug('setting up zmq interfaces...') if($::debug);
    
     my $context = ZeroMQ::Context->new();
     my $workers = $context->socket(ZMQ_PUSH);
@@ -362,21 +411,33 @@ sub process {
     $ctrl->bind(CTRL_CONNECTION());
     
     # feature of zmq, pub/sub's need a warm up msg
-    warn 'sending ctrl warm-up msg...';
-    $ctrl->send('WARMING UP');
+    debug('sending ctrl warm-up msg...');
+    $ctrl->send('WARMING_UP');
     
     my $return = $context->socket(ZMQ_PULL);
     $return->bind(RETURN_CONNECTION());
-
+    
+    my $workers_sum = $context->socket(ZMQ_PULL);
+    $workers_sum->bind(WORKER_SUM_CONNECTION());
+    
+    # this needs to be started first
+    debug('starting sender thread...');
+    threads->create('sender_routine',$self)->detach();
+    # thread/zmq safety requirement
+    # if the workers start too fast, this gets messed up, give it a 'tick' head-start
+    # if we still see a race condition, send a warmup message to the sender either here
+    # or through the workers as a 'checkin'
+    nanosleep NSECS_PER_MSEC;
+    
     ## TODO -- req/reply checkins?
-    warn 'creating '.$self->get_threads().' worker threads...';
+    debug('creating '.$self->get_threads().' worker threads...');
     for (1 ... $self->get_threads()) {
         threads->create('worker_routine', $self)->detach();
     }
        
-    warn 'done...' if($::debug);
+    debug('done...') if($::debug);
     
-    warn 'running preprocessor routine...' if($::debug);
+    debug('running preprocessor routine...') if($::debug);
     ## TODO -- figure out if this really needs to be threaded out or not
     # there are implications with how we return errors
     #my ($err,$array) = threads->create('preprocess_routine',$self)->join();
@@ -385,36 +446,84 @@ sub process {
 
     return (undef,'no records') unless($#{$array} > -1);
     
-    my $total_recs = ($#{$array});
-    warn 'processing: '.($total_recs + 1).' records...';
+    my $master_count = ($#{$array} + 1);
+    debug('processing: '.$master_count.' records...');
 
-    warn 'total recs: '.($total_recs + 1);
-    threads->create('sender_routine',$self, $total_recs)->detach();
+    debug('master count: '.$master_count);
 
-    warn 'sending to workers...' if($::debug);
+    ## TODO -- batch this out a little
+    debug('sending to workers...') if($::debug);
     $workers->send_as(json => $_) foreach(@$array);
     
+    my $poller = ZeroMQ::Poller->new(
+        {
+            name    => 'workers_sum',
+            socket  => $workers_sum,
+            events  => ZMQ_POLLIN,
+        },
+        {
+            name    => 'return',
+            socket  => $return,
+            events  => ZMQ_POLLIN,
+        },
+    );
+    
+    my $done = 0;
+    my $total_recs = $master_count;
+    my $sent_recs = 0;
     do {
-        warn 'waiting on message...' if($::debug);
-        my $msg = $return->recv();
-        warn 'return msg received...' if($::debug);
-
-        $msg = MessageType->decode($msg->data());
-        $total_recs -= ($#{$msg->{'data'}}+1);
-        warn 'total left: '.($total_recs + 1);
+        debug('waiting on message...');
+        
+        debug('polling...') if($::debug > 5);
+        $poller->poll();
+        debug('found msg');
+        if($poller->has_event('workers_sum')){
+            my $msg = $workers_sum->recv()->data();
+            for($msg){
+                if(/^COMPLETED:(\d+)$/){
+                    $master_count -= $1; 
+                    last;
+                }
+                if(/^ADDED:(\d+)$/){
+                    $total_recs += $1;
+                    last;
+                }
+            }
+        }
+        
+        ## TODO -- should this be after the return check?
+        debug('master count: '.$master_count);  
+        if($master_count == 0){
+            debug('sending total: '.$total_recs);
+            $ctrl->send('TOTAL:'.$total_recs);
+            $ctrl->send('WRK_DONE');
+        }
+        # waiting for sender
+        if($poller->has_event('return')){
+            debug('return msg received');
+            my $msg = $return->recv();
+            if($msg->data() =~ /^ERROR: /){
+                print $msg->data()."\n";
+                $sent_recs = -1;
+            } else {
+                $msg = MessageType->decode($msg->data());
+                # size of the array returned +1
+                $sent_recs += ($#{$msg->get_data()} + 1);
+            }
+        }
         nanosleep NSECS_PER_MSEC;
-    } while($total_recs > -1);
-    
-    warn 'sending KILL...';
-    $ctrl->send('DONE');
-    
-    wait;
+        # total_recs is based on 0 ... X not -1 ... X
+        debug('sent recs: '.$sent_recs);
+        debug('total recs: '.$total_recs);
+    } while($sent_recs != -1 && $sent_recs < $total_recs);
+
+    $ctrl->send('WRK_DONE');
     
     $workers->close();
+    $workers_sum->close();
     $ctrl->close();
     $return->close();
     $context->term();
-     
     return(undef,1);
 }
 
@@ -424,7 +533,7 @@ sub worker_routine {
     require Iodef::Pb::Simple;
     my $context = ZeroMQ::Context->new();
     
-    warn 'starting worker: '.threads->tid() if($::debug > 1);
+    debug('starting worker: '.threads->tid()) if($::debug > 1);
     
     my $receiver = $context->socket(ZMQ_PULL);
     $receiver->connect(WORKER_CONNECTION());
@@ -435,6 +544,9 @@ sub worker_routine {
     my $ctrl = $context->socket(ZMQ_SUB);
     $ctrl->setsockopt(ZMQ_SUBSCRIBE,''); 
     $ctrl->connect(CTRL_CONNECTION());
+    
+    my $workers_sum = $context->socket(ZMQ_PUSH);
+    $workers_sum->connect(WORKER_SUM_CONNECTION());
     
      my $poller = ZeroMQ::Poller->new(
         {
@@ -452,71 +564,93 @@ sub worker_routine {
     my $done = 0;
     my $recs = 0;
     while(!$done){
-        warn 'worker['.threads->tid().'] polling...' if($::debug > 2);
+        debug('polling...') if($::debug > 5);
         $poller->poll();
-        warn 'worker['.threads->tid().'] checking event...' if($::debug > 2);
+        debug('checking control...') if($::debug > 5);
+        if($poller->has_event('ctrl')){
+            my $msg = $ctrl->recv()->data();
+            debug('ctrl sig received: '.$msg) if($::debug > 5 && $msg eq 'WRK_DONE');
+            $done = 1 if($msg eq 'WRK_DONE');
+        }
+        debug('checking event...') if($::debug > 4);
         if($poller->has_event('worker')){
-            warn 'worker['.threads->tid().'] receiving event...' if($::debug > 3);
+            debug('receiving event...') if($::debug > 4);
             my $msg = $receiver->recv_as('json');
-            warn 'worker['.threads->tid().'] processing message...' if($::debug > 3);
+            debug('processing message...') if($::debug > 4);
             
-            warn 'worker['.threads->tid().'] generating uuid...' if($::debug > 3);
+            debug('generating uuid...') if($::debug > 4);
             $msg->{'id'} = generate_uuid_random();
             
             if($::debug > 1){
                 my $thing = $msg->{'address'} || $msg->{'malware_md5'} || $msg->{'malware_sha1'};
-                debug('uuid: '.$msg->{'id'}.' - '.$msg->{'detecttime'}.' - '.$thing.' - '.$msg->{'assessment'}.' - '.$msg->{'description'});
+                debug('uuid: '.$msg->{'id'}.' - '.$msg->{'reporttime'}.' - '.$thing.' - '.$msg->{'assessment'}.' - '.$msg->{'description'});
             }
     
-            warn 'worker['.threads->tid().'] generating iodef...' if($::debug > 3);
+            debug('generating iodef...') if($::debug > 3);
+
             my $iodef = Iodef::Pb::Simple->new($msg);
-            
+                  
+            my @results;
             if($self->get_postprocess()){
                 foreach my $p (@{$self->get_postprocess}){
-                    my $err;
+                    my ($err,$array);
                     try {
-                        $p->process($self,$iodef);
+                        $array = $p->process($self,$iodef);
                     } catch {
                         $err = shift;
                     };
-                    warn $err if($err);
+                    debug($err) if($::debug && $err);
+                    push(@results,@$array) if($array && @$array);
                 };
+
+                # we don't do +1 here cause the parent already knows about the
+                # original record
+             
+                if($#results > -1){
+                    @results = map { IODEFDocumentType->new({ lang => 'EN', Incident => $_ })->encode() } @results;
+                    # sometimes the $sender->send_as will get there faster
+                    # than the $workers_sum will make it up and over to the sender
+                    # it's possible we'll have to re-work this with the sender thread, but it works for now
+                    #$workers_sum->send(($#results+1));
+                    $workers_sum->send('ADDED:'.($#results+1));
+                    nanosleep NSECS_PER_MSEC;
+                }
             }
-            warn 'worker['.threads->tid().'] sending message...' if($::debug > 3);
-            $sender->send($iodef->encode());
-            warn 'worker['.threads->tid().'] message sent...' if($::debug > 3);
+            push(@results,$iodef->encode());
+                       
+            debug('sending message...') if($::debug > 3);
+            $sender->send_as('json' => \@results);
+            debug('message sent...') if($::debug > 3);
+            $workers_sum->send('COMPLETED:1');
         }
-        warn 'worker['.threads->tid().'] checking control...' if($::debug > 2);
-        if($poller->has_event('ctrl')){
-            warn 'worker['.threads->tid().'] recieved KILL';
-            my $x = $ctrl->recv();
-            $done = 1;
-        }
-        warn 'worker['.threads->tid().'] tick...' if($::debug > 3);
+        # thread/zmq safety requirement
         nanosleep NSECS_PER_MSEC;
-        warn 'worker['.threads->tid().'] tick done...' if($::debug > 3);
     }
-    warn 'worker['.threads->tid().'] done...' if($::debug > 2);
+    debug('done...') if($::debug > 2);
     $sender->close();
     $ctrl->close();
     $receiver->close();
+    $workers_sum->close();
     $context->term();
 }
 
 sub sender_routine {
     my $self        = shift;
-    my $total_recs  = shift;
+    #my $total_recs  = shift;
       
     # do this within the thread
+    require CIF::Client;
     my ($err,$client) = CIF::Client->new({
         config  => $self->get_client_config(),
+        apikey  => $self->get_apikey(),
     });
     $self->set_client($client);
     
+    my $batch_control = $self->get_batch_control();
+    
     my $context = ZeroMQ::Context->new();
     
-    warn 'starting sender thread...';
-    warn 'waiting for '.($total_recs+1).' recs...';
+    debug('starting sender thread...') if($::debug > 1);
        
     my $sender = $context->socket(ZMQ_PULL);
     $sender->bind(SENDER_CONNECTION());
@@ -541,38 +675,64 @@ sub sender_routine {
         },
     ); 
                  
-    my $array; 
+    my $queue; 
     my $done = 0;
+    my ($total_recs,$sent_recs) = (0,0);
     do {
+        debug('polling...') if($::debug > 4);
         $poller->poll();
+        # we wanna check this one first, since it'll come in later
         if($poller->has_event('ctrl')){
-            $done = 1;
-            my $x = $ctrl->recv();
-            warn 'sender: KILL sig received';
-        }
-        do {
-            if($poller->has_event('sender')){
-                warn 'sender['.threads->tid().'] found event...' if($::debug > 2);
-                my $msg = $sender->recv();
-                warn 'sender['.threads->tid().'] msg recieved...' if($::debug > 2);
-                push(@$array,$msg->data());
-                # 300 is arbitrary || this is the last rec in the batch
-                if(($#{$array}+1) % $self->get_batch_control() == 0 || $total_recs == 0){
-                    warn 'sender['.threads->tid().'] sending data to router...' if($::debug > 2);
-                    my $ret = $self->send($array);
-                    warn 'sender['.threads->tid().'] returning answer from router...' if($::debug > 2);
-                    $return->send($ret->encode());
-                    $array = [];
-                    warn 'sender['.threads->tid().'] total recs left: '.($total_recs+1) if($::debug > 2);
+            my $msg = $ctrl->recv()->data();
+            debug('ctrl sig received: '.$msg) if($::debug > 2);
+            for($msg){
+                if(/^TOTAL:(\d+)$/){
+                    $total_recs = $1;
+                    debug('total received: '.$total_recs) if($::debug > 2);
+                    last;
                 }
-                $total_recs--;
             }
-            nanosleep NSECS_PER_MSEC;
-        } while($total_recs > -1);
+        }
+        # we need to move this out of the if/then incase we're waiting on a kill
+        if($poller->has_event('sender')){
+            debug('found event...') if($::debug > 2);
+            my $msg = $sender->recv_as('json');
+            my $num_msgs = ($#{$msg}+1);
+            debug('msgs recvieved: '.$num_msgs) if($::debug > 2);
+            push(@$queue,@$msg);
+            debug('msgs in queue: '.($#{$queue}+1)) if($::debug > 2);
+        }
+        
+        # we're not done till we at-least have a total from the 
+        # master thread
+        # if what's in the queue is the difference between sent and total
+        # we're done
+        if($total_recs && ($sent_recs + (($#{$queue}+1)) == $total_recs)){
+            $done = 1;
+        }
+        # if we have a total number and it's equal to our sent number
+        # we're done
+        if($total_recs && ($sent_recs == $total_recs)){
+            $done = 1;
+        }
+
+        if($#{$queue} > $batch_control || $done){
+            debug('sending data to router: '.($#{$queue}+1)) if($::debug > 2);
+            my ($err,$ret) = $self->send($queue);
+            debug('returning answer from router...') if($::debug > 2);
+            if($err){
+                $return->send($err);
+            } else {
+                $return->send($ret->encode());
+            }
+            $sent_recs += ($#{$queue}+1);
+            $queue = [];
+        }
         nanosleep NSECS_PER_MSEC;
-    } while (!$done && ($total_recs > -1));
+
+    } while (!$done);
     
-    warn 'sender done...';
+    debug('sender done...') if($::debug > 1);;
     $sender->close();
     $return->close();
     $ctrl->close();
@@ -582,15 +742,14 @@ sub sender_routine {
 sub send {
     my $self = shift;
     my $data = shift;
- 
-    warn 'creating new submission';
+
+    debug('creating new submission') if($::debug);
     my $ret = $self->get_client->new_submission({
         guid    => $self->get_rules->{'guid'},
         data    => $data,
     });
     
-    warn 'submitting...';
- 
+    debug('submitting...') if($::debug);
     return $self->get_client->submit($ret);    
 }
 
@@ -609,39 +768,12 @@ sub throttle {
     return($cores * DEFAULT_THROTTLE_FACTOR())  if($throttle eq 'medium');
 }
 
-sub normalize_timestamp {
-    my $dt = shift;
-    return $dt if($dt =~ /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
-    if($dt && ref($dt) ne 'DateTime'){
-        if($dt =~ /^\d+$/){
-            if($dt =~ /^\d{8}$/){
-                $dt.= 'T00:00:00Z';
-                $dt = eval { DateTime::Format::DateParse->parse_datetime($dt) };
-                unless($dt){
-                    $dt = DateTime->from_epoch(epoch => time());
-                }
-            } else {
-                $dt = DateTime->from_epoch(epoch => $dt);
-            }
-        } elsif($dt =~ /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\S+)?$/) {
-            my ($year,$month,$day,$hour,$min,$sec,$tz) = ($1,$2,$3,$4,$5,$6,$7);
-            $dt = DateTime::Format::DateParse->parse_datetime($year.'-'.$month.'-'.$day.' '.$hour.':'.$min.':'.$sec,$tz);
-        } else {
-            $dt =~ s/_/ /g;
-            $dt = DateTime::Format::DateParse->parse_datetime($dt);
-            return undef unless($dt);
-        }
-    }
-    $dt = $dt->ymd().'T'.$dt->hms().'Z';
-    return $dt;
-}
-
 sub _sort_detecttime {
     my $recs = shift;
 
     foreach (@{$recs}){
         delete($_->{'regex'}) if($_->{'regex'});
-        my $dt = $_->{'detecttime'};
+        my $dt = $_->{'reporttime'} || $_->{'detecttime'};
         if($dt){
             $dt = normalize_timestamp($dt);
         }
@@ -657,11 +789,11 @@ sub _sort_detecttime {
                 $dt = $dt->ymd().'T'.$dt->hms();
             }
         }
-        $_->{'detecttime'} = $dt;
+        $_->{'reporttime'} = $dt;
         $_->{'description'} = '' unless($_->{'description'});
     }
     ## TODO -- can we get around having to create a new array?
-    my @new = sort { $b->{'detecttime'} cmp $a->{'detecttime'} } @$recs;
+    my @new = sort { $b->{'reporttime'} cmp $a->{'reporttime'} } @$recs;
     return(\@new);
 }
 

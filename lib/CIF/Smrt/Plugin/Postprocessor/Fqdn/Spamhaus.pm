@@ -14,7 +14,6 @@ sub process {
 
     my @new_ids;
     foreach my $i (@{$data->get_Incident()}){
-        next unless($i->get_purpose && $i->get_purpose == IncidentType::IncidentPurpose::Incident_purpose_mitigation());
         next unless($i->get_EventData());
         
         my $altids = $i->get_RelatedActivity();
@@ -25,6 +24,14 @@ sub process {
         my $confidence = @{$assessment}[0]->get_Confidence();
         $confidence = $confidence->get_content();
         $confidence = $class->degrade_confidence($confidence);
+        
+        my $guid;
+        if(my $iad = $i->get_AdditionalData()){
+            foreach (@$iad){
+                next unless($_->get_meaning() =~ /^guid/);
+                $guid = $_->get_content();
+            }
+        }
         
         foreach my $e (@{$i->get_EventData()}){
             $restriction = $e->get_restriction() if($e->get_restriction());
@@ -40,6 +47,7 @@ sub process {
                         foreach my $addr (@$addresses){
                             next unless($class->is_fqdn($addr));
                             my $ret = check_fqdn($addr->get_content(),2);
+                            next unless($ret);
                             foreach my $r (@$ret){
                                 my $id = IncidentIDType->new({
                                     content     => generate_uuid_random(),
@@ -48,13 +56,11 @@ sub process {
                                     restriction => $restriction,
                                 });
                                 my $new = Iodef::Pb::Simple->new({
-                                    purpose     => 'traceback',
                                     address     => $addr->get_content(),
                                     IncidentID  => $id,
                                     assessment  => $r->{'assessment'},
                                     description => $r->{'description'},
                                     confidence  => 95,
-                                    AlternativeID   => $i->get_IncidentID(),
                                     restriction     => $restriction,
                                     RelatedActivity => RelatedActivityType->new({
                                         IncidentID  => IncidentIDType->new({
@@ -65,10 +71,11 @@ sub process {
                                         }),
                                     }),
                                     Contact     => $i->get_Contact(),
+                                    guid        => $guid,
                                     
                                 });
                                 push(@new_ids,@{$new->get_Incident()}[0]);
-                                push(@$altids, RelatedActivityType->new({IncidentID => $id }));
+                                push(@$altids, RelatedActivityType->new({IncidentID => $id, restriction => $restriction }));
                                 
                             }
                         }
@@ -78,7 +85,8 @@ sub process {
         }
         $i->set_RelatedActivity($altids);
     }
-    push(@{$data->get_Incident()},@new_ids);
+    #push(@{$data->get_Incident()},@new_ids);
+    return(\@new_ids);
 }
 
 1;

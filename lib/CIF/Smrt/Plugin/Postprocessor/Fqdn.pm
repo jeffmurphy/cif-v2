@@ -4,7 +4,7 @@ use base 'CIF::Smrt::Plugin::Postprocessor';
 use strict;
 use warnings;
 
-use Iodef::Pb qw(:all);
+use Iodef::Pb::Simple ':all';
 require Net::DNS::Resolver;
 
 use Module::Pluggable require => 1, search_path => [__PACKAGE__];
@@ -18,19 +18,22 @@ sub process {
  
     my $addresses = iodef_addresses($data);
     return unless($#{$addresses} > -1);
-        
+       
+    my $array;
     foreach (@plugins){
-        $_->process($smrt,$data);
+        my $r = $_->process($smrt,$data);
+        push(@$array,@$r) if($r && @$r);
     }
+    return $array;
 }
 
 sub is_fqdn {
     my $class = shift;
     my $addr = shift;
     
-    # TODO -- change this to ext_categry
-    #return 1 if($addr->get_category()  == AddressType::AddressCategory::Address_category_fqdn());
-    return 1 if($addr->get_content() =~ /^[a-z0-9.-]+\.[a-z]{2,6}$/);
+    return unless($addr->get_category() == AddressType::AddressCategory::Address_category_ext_value());
+    return unless($addr->get_ext_category() =~ /^(fqdn|domain)$/);
+    return 1 if($addr->get_content() =~ /^[a-z0-9.-]+\.[a-z]{2,8}$/);
 }
 
 sub resolve {

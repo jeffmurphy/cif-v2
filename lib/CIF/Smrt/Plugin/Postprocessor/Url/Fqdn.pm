@@ -1,13 +1,12 @@
-package CIF::Smrt::Plugin::Postprocessor::Url::Domain;
+package CIF::Smrt::Plugin::Postprocessor::Url::Fqdn;
 use base 'CIF::Smrt::Plugin::Postprocessor::Url';
-
 
 use strict;
 use warnings;
 
 use CIF qw/generate_uuid_random/;
 use Regexp::Common qw/net/;
-use Iodef::Pb ':all';
+use Iodef::Pb::Simple ':all';
 
 my @postprocessors = CIF::Smrt->plugins();
 @postprocessors = grep(/Postprocessor::[0-9a-zA-Z_]+$/,@postprocessors);
@@ -17,6 +16,7 @@ sub process {
     my $smrt    = shift;
     my $data    = shift;
     
+    ## TODO -- FIX!
     my @new_incidents;
     foreach my $i (@{$data->get_Incident()}){
         next unless($i->get_purpose && $i->get_purpose == IncidentType::IncidentPurpose::Incident_purpose_mitigation());
@@ -27,7 +27,17 @@ sub process {
         my $confidence = @{$assessment}[0]->get_Confidence();
         $confidence = $confidence->get_content();
         $confidence = $class->degrade_confidence($confidence);
-        my $impact = iodef_impacts_first($data);
+        my $impact = iodef_impacts_first($i);
+        $impact = $impact->get_content->get_content();
+        
+        my $guid;
+        if(my $iad = $i->get_AdditionalData()){
+            foreach (@$iad){
+                next unless($_->get_meaning() =~ /^guid/);
+                $guid = $_->get_content();
+            }
+        }
+        
         foreach my $e (@{$i->get_EventData()}){
             $restriction = $e->get_restriction() if($e->get_restriction());
             my @flows = (ref($e->get_Flow()) eq 'ARRAY') ? @{$e->get_Flow()} : $e->get_Flow();
@@ -60,25 +70,28 @@ sub process {
                                 restriction => $restriction,
                             });
                             my $new = Iodef::Pb::Simple->new({
-                                purpose     => 'mitigation',
                                 address     => $addr,
                                 portlist    => $port,
                                 protocol    => 6,
                                 IncidentID  => $id,
-                                assessment  => $impact->get_content(),
+                                assessment  => $impact,
                                 description => $description,
                                 confidence  => $confidence,
-                                AlternativeID   => $i->get_IncidentID(),
-                                restriction     => $restriction,       
+                                RelatedActivity   => RelatedActivityType->new({
+                                    IncidentID  => $i->get_IncidentID(),
+                                    restriction => $restriction,
+                                }),
+                                restriction     => $restriction,
+                                guid            => $guid, 
                             });
-                            ## TODO -- these stack on eachother
                             foreach (@postprocessors){
-                                $_->process($new);
+                                my $ret = $_->process($smrt,$new);
+                                push(@new_incidents,@$ret) if($ret);
                             }
                             push(@new_incidents,@{$new->get_Incident()});
-                            my $altids = $i->get_AlternativeID();
-                            push(@$altids, { IncidentID => $id });
-                            $i->set_AlternativeID($altids);
+                            my $altids = $i->get_RelatedActivity();
+                            push(@$altids, RelatedActivityType->new({IncidentID => $id, restriction => $restriction }));
+                            $i->set_RelatedActivity($altids);
                             
                         }
                     }
@@ -86,7 +99,7 @@ sub process {
             }
         }
     }
-    push(@{$data->get_Incident()},@new_incidents) if($#new_incidents > -1);
+    return(\@new_incidents);
 }
 
 1;

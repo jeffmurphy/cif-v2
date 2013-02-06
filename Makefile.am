@@ -1,6 +1,6 @@
-EXTRA_DIST = lib bin sbin etc
+EXTRA_DIST = lib bin sbin rules/etc
 
-ME=cif-smrt-perl
+ME=cif-smrt
 BUILD=$(shell git describe --tags)
 SNAPSHOT=$(ME)-$(BUILD)
 
@@ -29,17 +29,18 @@ testdeps:
 local-whitelist:
 	[ -e $(prefix)/etc/whitelist_domains ] || touch "$(prefix)/etc/whitelist_domains"
 	[ -e $(prefix)/etc/whitelist_infrastructure ] || touch "$(prefix)/etc/whitelist_infrastructure"
+	[ -e $(prefix)/etc/whitelist_urls ] || touch "$(prefix)/etc/whitelist_urls"
 
 etc-link:
 	[ -d /etc/cif ] || ln -sf $(prefix)/etc /etc/cif
     
 etc-install:
 	[ -d $(sysconfdir) ] || $(INSTALL) -m 0755 -d $(sysconfdir)
-	-( cd etc && find . -type d -print ) | while read dir ; do \
+	-( cd rules/etc && find . -type d -print ) | while read dir ; do \
     $(INSTALL) -m 0750 -d "$(sysconfdir)/$$dir" ; \
     done
-	-( cd etc && find . -type f -print ) | while read file ; do \
-    $(INSTALL) -m 0640 "etc/$$file" "$(sysconfdir)/$$file" ; \
+	-( cd rules/etc && find . -type f -print ) | while read file ; do \
+    $(INSTALL) -m 0640 "rules/etc/$$file" "$(sysconfdir)/$$file" ; \
     done
     
 libs-install:
