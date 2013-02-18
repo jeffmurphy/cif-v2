@@ -11,13 +11,13 @@ $VERSION = eval $VERSION;  # see L<perlmodstyle>
 
 # we're using ipc instead of inproc cause perl sucks
 # at sharing context's with certain types of sockets (ZMQ_PUSH in particular)
-use constant WORKER_CONNECTION      => 'ipc://workers';
+use constant WORKER_CONNECTION      => 'ipc:///tmp/workers';
 # this is used to return back the total sum of recs processed by the analytics
 # i'm sure there's a better way to do this
-use constant WORKER_SUM_CONNECTION  => 'ipc://workers_sum';
-use constant RETURN_CONNECTION      => 'ipc://return';
-use constant SENDER_CONNECTION      => 'ipc://sender';
-use constant CTRL_CONNECTION        => 'ipc://ctrl';
+use constant WORKER_SUM_CONNECTION  => 'ipc:///tmp/workers_sum';
+use constant RETURN_CONNECTION      => 'ipc:///tmp/return';
+use constant SENDER_CONNECTION      => 'ipc:///tmp/sender';
+use constant CTRL_CONNECTION        => 'ipc:///tmp/ctrl';
 
 # for figuring out throttle
 use constant DEFAULT_THROTTLE_FACTOR => 4;
@@ -87,7 +87,7 @@ sub init {
       
     ($err,$ret) = $self->init_rules($args);
     return($err) if($err);
-        
+
     $self->set_threads(         $args->{'threads'}          || $self->get_config->{'threads'}           || 1);
     $self->set_goback(          $args->{'goback'}           || $self->get_config->{'goback'}            || 3);
     $self->set_load_full(       $args->{'load_full'}        || $self->get_config->{'load_full'}         || 0);
@@ -401,11 +401,15 @@ sub process {
     my $args = shift;
     
     # do this first so the threads don't copy the recs into their mem
-    debug('setting up zmq interfaces...') if($::debug);
+    debug('setting up zmq interfaces') if($::debug);
    
     my $context = ZeroMQ::Context->new();
     my $workers = $context->socket(ZMQ_PUSH);
+    debug('setting up zmq interfaces: workers->bind') if($::debug);
+    
     $workers->bind(WORKER_CONNECTION());
+    
+    debug('setting up zmq interfaces: ZMQ_PUB') if($::debug);
     
     my $ctrl = $context->socket(ZMQ_PUB);
     $ctrl->bind(CTRL_CONNECTION());
@@ -681,6 +685,7 @@ sub sender_routine {
     do {
         debug('polling...') if($::debug > 4);
         $poller->poll();
+        
         # we wanna check this one first, since it'll come in later
         if($poller->has_event('ctrl')){
             my $msg = $ctrl->recv()->data();
@@ -698,10 +703,12 @@ sub sender_routine {
             debug('found event...') if($::debug > 2);
             my $msg = $sender->recv_as('json');
             my $num_msgs = ($#{$msg}+1);
-            debug('msgs recvieved: '.$num_msgs) if($::debug > 2);
+            debug('msgs received: '.$num_msgs) if($::debug > 2);
             push(@$queue,@$msg);
             debug('msgs in queue: '.($#{$queue}+1)) if($::debug > 2);
         }
+        
+        debug("tot_recs $total_recs send_recs $sent_recs in_queue ". @$queue);
         
         # we're not done till we at-least have a total from the 
         # master thread
@@ -709,11 +716,13 @@ sub sender_routine {
         # we're done
         if($total_recs && ($sent_recs + (($#{$queue}+1)) == $total_recs)){
             $done = 1;
+            debug("apparently we're done /weshack") if ($::debug > 2);
         }
         # if we have a total number and it's equal to our sent number
         # we're done
         if($total_recs && ($sent_recs == $total_recs)){
             $done = 1;
+            debug("apparently we're done") if ($::debug > 2);
         }
 
         if($#{$queue} > $batch_control || $done){

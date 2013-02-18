@@ -9,7 +9,8 @@ BEGIN {
         "lib",
         "local/lib",
 	"/usr/local/lib/cif-protocol/pb-perl/lib/",
-        "../../libcif/lib", # in case we're in -dev mode
+        "../libcif/lib", # in case we're in -dev mode
+        "../libcif-dbi/lib", # in case we're in -dev mode
     );
     my $bin_path;
 
@@ -40,7 +41,7 @@ use CIF qw/debug/;
 use Sys::MemInfo qw(totalmem);
 
 my %opts;
-getopts('hNA:s:T:t:dFC:f:r:v:Pp:',\%opts);
+getopts('hNA:s:T:t:d:FC:f:r:v:Pp:',\%opts);
 our $debug = $opts{'d'} || 0;
 $debug = $opts{'v'} if($opts{'v'});
 
@@ -97,8 +98,8 @@ Advanced:
                         (default: $admin)
                         
 Examples:
-    \$ $0 -c $rules_dir/spyeyetracker.cfg -f binaries -T medium
-    \$ $0 -c $rules_dir/malwaredomains.cfg -f domains -T high -d
+    \$ $0 -r $rules_dir/spyeyetracker.cfg -f binaries -T medium
+    \$ $0 -r $rules_dir/malwaredomains.cfg -f domains -T high -d
 EOF
 }
 
