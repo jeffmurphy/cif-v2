@@ -27,6 +27,8 @@ use constant DEFAULT_SEVERITY_MAP => {
     botnet      => 'high',
 };
 
+use MIME::Base64;
+
 use Regexp::Common qw/net URI/;
 use Regexp::Common::net::CIDR;
 use Encode qw/encode_utf8/;
@@ -41,6 +43,9 @@ use Net::SSLeay;
 Net::SSLeay::SSLeay_add_ssl_algorithms();
 
 use CIF qw/generate_uuid_url generate_uuid_random is_uuid debug normalize_timestamp/;
+use CIF::Msg;
+use CIF::Msg::Control;
+use CIF::Msg::Support;
 
 use Time::HiRes qw/nanosleep/;
 use ZeroMQ qw/:all/;
@@ -486,13 +491,13 @@ sub process {
         if($poller->has_event('return')){
             debug('return msg received');
             my $msg = $return->recv();
+
             if($msg->data() =~ /^ERROR: /){
-                print $msg->data()."\n";
                 $sent_recs = -1;
             } else {
-                $msg = MessageType->decode($msg->data());
+
                 # size of the array returned +1
-                $sent_recs += ($#{$msg->get_data()} + 1);
+                $sent_recs += $msg->data();
             }
         }
         nanosleep NSECS_PER_MSEC;
@@ -573,9 +578,10 @@ sub worker_routine {
             debug('generating iodef...') if($::debug > 3);
 
             my $iodef = Iodef::Pb::Simple->new($msg);
-                  
+            
             my @results;
             if($self->get_postprocess()){
+            	debug("in get_postprocess section") if ($::debug > 3);
                 foreach my $p (@{$self->get_postprocess}){
                     my ($err,$array);
                     try {
@@ -584,14 +590,14 @@ sub worker_routine {
                         $err = shift;
                     };
                     debug($err) if($::debug && $err);
-                    push(@results,@$array) if($array && @$array);
-                };
+                    push @results, @$array if ($array && @$array);
+                }
 
                 # we don't do +1 here cause the parent already knows about the
                 # original record
              
                 if($#results > -1){
-                    @results = map { IODEFDocumentType->new({ lang => 'EN', Incident => $_ })->encode() } @results;
+                    @results = map { encode_base64(IODEFDocumentType->new({ lang => 'EN', Incident => $_ })->encode()) } @results;
                     # sometimes the $sender->send_as will get there faster
                     # than the $workers_sum will make it up and over to the sender
                     # it's possible we'll have to re-work this with the sender thread, but it works for now
@@ -600,9 +606,12 @@ sub worker_routine {
                     nanosleep NSECS_PER_MSEC;
                 }
             }
-            push(@results,$iodef->encode());
-                       
+            
+            # pass base64 bc send_as converts to utf8 which throws off PB decoding later on
+            push(@results, encode_base64($iodef->encode()));
+
             debug('sending message...') if($::debug > 3);
+
             $sender->send_as('json' => \@results);
             debug('message sent...') if($::debug > 3);
             $workers_sum->send('COMPLETED:1');
@@ -661,7 +670,7 @@ sub sender_routine {
                  
     my $queue; 
     my $done = 0;
-    my ($total_recs,$sent_recs) = (0,0);
+    my ($total_recs,$sent_recs) = (6,0);
     do {
         debug('polling...') if($::debug > 4);
         $poller->poll();
@@ -682,9 +691,13 @@ sub sender_routine {
         if($poller->has_event('sender')){
             debug('found event...') if($::debug > 2);
             my $msg = $sender->recv_as('json');
+            
             my $num_msgs = ($#{$msg}+1);
             debug('msgs received: '.$num_msgs) if($::debug > 2);
-            push(@$queue,@$msg);
+            foreach (@$msg) {
+            	push @$queue, decode_base64($_);
+            }
+
             debug('msgs in queue: '.($#{$queue}+1)) if($::debug > 2);
         }
         
@@ -709,10 +722,16 @@ sub sender_routine {
             debug('sending data to router: '.($#{$queue}+1)) if($::debug > 2);
             my ($err,$ret) = $self->send($queue);
             debug('returning answer from router...') if($::debug > 2);
-            if($err){
-                $return->send($err);
+            
+            # if the answers was 'success' then send the number of messages we submitted
+            # back to process()
+            
+            my $status = $ret->get_status();
+            
+            if($status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
+                $return->send("ERROR: " . ($ret->{statusMsg} || "none"));
             } else {
-                $return->send($ret->encode());
+                $return->send($ret->{statusMsg}); # this contains the # of items submitted
             }
             $sent_recs += ($#{$queue}+1);
             $queue = [];
@@ -733,6 +752,7 @@ sub send {
     my $data = shift;
 
     debug('creating new submission') if($::debug);
+  
     my $ret = $self->get_client->new_submission({
         guid    => $self->get_rules->{'guid'},
         data    => $data,
