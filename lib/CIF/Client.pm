@@ -18,6 +18,7 @@ use URI::Escape;
 use Digest::SHA1 qw/sha1_hex/;
 use Digest::MD5 qw/md5_hex/;
 use Encode qw(encode_utf8);
+use Data::Dumper;
 
 use CIF qw(generate_uuid_ns debug);
 use CIF::Msg;
@@ -43,7 +44,7 @@ sub new {
     
     my $self = {};
     bless($self,$class);
-    
+        
     $self->set_config(          $args->{'config'}->param(-block => 'client'));
     $self->set_driver(          $self->get_config->{'driver'} || 'HTTP');
     $self->set_driver_config(   $args->{'config'}->param(-block => 'client_'.lc($self->get_driver())));
@@ -243,6 +244,8 @@ sub submit {
     my $self = shift;
     my $data = shift;
     
+    my $nitems = @$data;
+    
     my $msg = CIF::Msg::MessageType->new({
     	version => CIF::Msg::Support::getOurVersion("Message"),
         type    => CIF::Msg::MessageType::MsgType::SUBMISSION(), 
@@ -256,10 +259,14 @@ sub submit {
     
     $ret = CIF::Msg::MessageType->decode($ret);
     
-    unless($ret->get_status() == CIF::Msg::MessageType::StatusType::SUCCESS()){
-        return('ERROR: '.@{$ret->get_data()}[0]) if($ret->get_status() == CIF::Msg::MessageType::StatusType::FAILED());
+    unless($ret->get_status() != CIF::Msg::MessageType::StatusType::SUCCESS()){
+        return('ERROR: ' . $ret->{statusMsg}) if($ret->get_status() == CIF::Msg::MessageType::StatusType::FAILED());
         return('ERROR: unauthorized') if($ret->get_status() == CIF::Msg::MessageType::StatusType::UNAUTHORIZED());
     }
+    
+    # on success, pass the number of successfully submitted objects back to the
+    # caller
+    $ret->{statusMsg} = $nitems;
     
     return (undef,$ret);
 }    
@@ -267,20 +274,21 @@ sub submit {
 sub new_submission {
     my $self = shift;
     my $args = shift;
-    
+
     my $data = (ref($args->{'data'}) eq 'ARRAY') ? $args->{'data'} : [$args->{'data'}];
-    
+ 
+	my @rv;
     foreach (@$data){
-    	#print "\n\n************data:********\n\n $_\n";
-        $_ = encode_base64(Compress::Snappy::compress($_));
+#TODO this decision should be in the driver, not at this layer
+#v1        $_ = encode_base64(Compress::Snappy::compress($_));
+		push @rv, {
+#TODO we lose the 'type' along the way. at this pt we are iodef only
+#TODO in the future, we'll need to have the type passed into us
+			'baseObjectType' => 'RFC5070_IODEF_v1_pb2',
+			'data' => $_
+		};
     }
     
-    return $data;
-    
-    #my $msg = MessageType::SubmissionType->new({
-    #    guid    => $args->{'guid'},
-    #    data    => $data,
-    #});
-    #return $msg->encode();
+    return \@rv;
 }
 1;
