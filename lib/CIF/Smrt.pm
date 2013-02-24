@@ -64,11 +64,8 @@ __PACKAGE__->mk_accessors(qw(
     severity_map proxy
 ));
 
-my @preprocessors = __PACKAGE__->plugins();
-@preprocessors = grep(/Preprocessor::[0-9a-zA-Z_]+$/,@preprocessors);
-
-our @postprocessors = __PACKAGE__->plugins();
-@postprocessors = grep(/Postprocessor::[0-9a-zA-Z_]+$/,@postprocessors);
+our @preprocessors;
+our @postprocessors;
 
 sub new {
     my $class = shift;
@@ -76,7 +73,10 @@ sub new {
     
     my $self = {};
     bless($self,$class);
-      
+
+    @postprocessors =  grep(/Postprocessor::[0-9a-zA-Z_]+$/,  __PACKAGE__->plugins());
+    @preprocessors = grep(/Preprocessor::[0-9a-zA-Z_]+$/, __PACKAGE__->plugins());
+    
     my ($err,$ret) = $self->init($args);
     return($err) if($err);
 
@@ -125,20 +125,22 @@ sub init {
 sub init_postprocessors {
     my $self = shift;
     my $args = shift;
-    
     my $things = $args->{'postprocess'} || $self->get_config->{'postprocess'};
     return unless($things);
     
-    if($things eq '1'){
+    if($things eq '1') {
         $self->set_postprocess(\@postprocessors);
     } else {
         my $enabled;
-        foreach (@$things){
+        foreach (@$things) {
             foreach my $p (@postprocessors){
-                push(@$enabled,$p) if(lc($p) =~ /::$_$/);
+                if(lc($p) =~ /::$_$/) {
+                	print "enablibg $p\n";
+                	push(@$enabled,$p);
+                	$self->set_postprocess($p);
+                }
             }
         }
-        $self->set_postprocess($enabled);
     }
 }
 
@@ -580,9 +582,20 @@ sub worker_routine {
             my $iodef = Iodef::Pb::Simple->new($msg);
             
             my @results;
-            if($self->get_postprocess()){
-            	debug("in get_postprocess section") if ($::debug > 3);
-                foreach my $p (@{$self->get_postprocess}){
+            if($self->get_postprocess()) {
+            	my $_pp = $self->get_postprocess;
+
+            	my @_pp;
+            	if (ref($_pp) eq "ARRAY") {
+            		@_pp = @$_pp;
+            	}
+            	else {
+            		push @_pp, $_pp;
+            	}
+            	
+            	debug("in get_postprocess section with processors: ". join(',', @_pp)) if ($::debug > 3);
+            	
+                foreach my $p (@_pp) {
                     my ($err,$array);
                     try {
                         $array = $p->process($self,$iodef);
