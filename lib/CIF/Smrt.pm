@@ -631,11 +631,19 @@ sub worker_routine {
         # thread/zmq safety requirement
         nanosleep NSECS_PER_MSEC;
     }
-    debug('done...') if($::debug > 2);
+    debug('sender->close') if($::debug > 2);
     $sender->close();
+    debug('ctrl->close') if($::debug > 2);
+    
     $ctrl->close();
+    debug('receiver->close') if($::debug > 2);
+    
     $receiver->close();
+    debug('workers_sum->close') if($::debug > 2);
+    
     $workers_sum->close();
+    debug('context->term') if($::debug > 2);
+    
     $context->term();
 }
 
@@ -682,13 +690,13 @@ sub sender_routine {
                  
     my $queue; 
     my $done = 0;
-    my ($total_recs,$sent_recs) = (6,0);
+    my ($total_recs,$sent_recs) = (0,0);
     do {
         debug('polling...') if($::debug > 4);
         $poller->poll();
         
         # we wanna check this one first, since it'll come in later
-        if($poller->has_event('ctrl')){
+        if($poller->has_event('ctrl')) {
             my $msg = $ctrl->recv()->data();
             debug('ctrl sig received: '.$msg) if($::debug > 2);
             for($msg){
@@ -713,7 +721,7 @@ sub sender_routine {
             debug('msgs in queue: '.($#{$queue}+1)) if($::debug > 2);
         }
         
-        debug("tot_recs $total_recs send_recs $sent_recs in_queue ". @$queue);
+        debug("batch $batch_control tot_recs $total_recs send_recs $sent_recs in_queue  ". @$queue);
         
         # we're not done till we at-least have a total from the 
         # master thread
@@ -721,7 +729,7 @@ sub sender_routine {
         # we're done
         if($total_recs && ($sent_recs + (($#{$queue}+1)) == $total_recs)){
             $done = 1;
-            debug("apparently we're done /weshack") if ($::debug > 2);
+            debug("apparently we're done") if ($::debug > 2);
         }
         # if we have a total number and it's equal to our sent number
         # we're done
@@ -752,10 +760,13 @@ sub sender_routine {
 
     } while (!$done);
     
-    debug('sender done...') if($::debug > 1);;
+    debug('sender done: sender->close') if($::debug > 1);;
     $sender->close();
+    debug('sender done: return->close') if($::debug > 1);;
     $return->close();
+    debug('sender done: ctrl->close') if($::debug > 1);;
     $ctrl->close();
+    debug('sender done: context->term') if($::debug > 1);;
     $context->term();
 }
 
