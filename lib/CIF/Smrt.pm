@@ -135,7 +135,6 @@ sub init_postprocessors {
         foreach (@$things) {
             foreach my $p (@postprocessors){
                 if(lc($p) =~ /::$_$/) {
-                	print "enablibg $p\n";
                 	push(@$enabled,$p);
                 	$self->set_postprocess($p);
                 }
@@ -619,7 +618,7 @@ sub worker_routine {
                     nanosleep NSECS_PER_MSEC;
                 }
             }
-            
+#            print Dumper($iodef) . "\n";            
             # pass base64 bc send_as converts to utf8 which throws off PB decoding later on
             push(@results, encode_base64($iodef->encode()));
 
