@@ -265,7 +265,7 @@ class Foundation(object):
                 msg = r[1]
                 decoded_msg = control_pb2.ControlType()
                 decoded_msg.ParseFromString(msg)
-                print ti + "] eventloop: msg: "#, decoded_msg
+                print ti + "] eventloop: msg: ", decoded_msg
                 try:
                     cifsupport.versionCheck(decoded_msg)
                     

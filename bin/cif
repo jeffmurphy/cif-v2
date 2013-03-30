@@ -5,7 +5,7 @@ use strict;
 # fix lib paths, some may be relative
 BEGIN {
     require File::Spec;
-    my @libs = ("lib", "local/lib");
+    my @libs = ("lib", "local/lib", "/usr/local/lib/cif-protocol/pb-perl/lib");
     my $bin_path;
 
     for my $lib (@libs) {
@@ -30,6 +30,7 @@ use lib '../libcif/lib';
 use lib '../../iodef-pb-simple-perl/lib';
 
 use CIF::Client;
+
 use Getopt::Std;
 use Data::Dumper;
 use CIF qw/debug/;

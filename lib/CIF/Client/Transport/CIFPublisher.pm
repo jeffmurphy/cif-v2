@@ -190,7 +190,7 @@ sub new {
     bless($self,$class);
     
     $self->{D} = 1;
-	
+		
     $self->{'controlport'} = $args->{config}->{'zmq_controlport'};
     $self->{'publisherport'} = $args->{config}->{'zmq_publisherport'};
     $self->{'cifrouter'} = $args->{config}->{'zmq_cifrouter'};
@@ -198,7 +198,7 @@ sub new {
     $self->{'myname'} = $self->myip() . ":" . $self->{publisherport} . "|" . $self->{myid};
     $self->{'apikey'} = $args->{config}->{apikey};
     
-    print "apikey " . $self->{'apikey'};
+    #print "apikey " . $self->{'apikey'};
     
     # $self->{cf} = new CIF::Foundation(
 	# {
@@ -248,6 +248,55 @@ sub send {
     	status => 	CIF::Msg::MessageType::StatusType::SUCCESS()
     });
     return (undef, $rm);
+}
+
+sub send_direct {
+	my $self = shift;
+	my $msg  = shift;
+	return unless defined($msg);
+	
+	print "SD ", Dumper($msg), "\n";
+	
+	my $rv = 
+		$self->send_multipart([$self->add_seq($msg)->encode()]);
+
+	print "send_direct: Waiting for reply\n" if $self->{D};
+	
+	my $reply = $self->recv_multipart();
+	
+	return $reply;
+#	$cm = CIF::Msg::ControlType->decode($reply->[0]);
+}
+
+=pod 
+
+ eg. 
+ 
+ make_control_message(
+   		"cif-db",
+  		CIF::Msg::ControlType::MsgType::COMMAND(), 
+  		CIF::Msg::ControlType::CommandType::CIF_QUERY_REQUEST()
+  )
+  
+=cut
+
+sub make_control_message {
+	my $self = shift;
+	my $dst = shift;
+	my $t = shift;
+	my $cmd = shift;
+	
+	print Dumper($self), "\n";
+	
+	return CIF::Msg::ControlType->new({
+		type => $t,
+		command => $cmd,
+		src => $self->{'myname'},
+		dst => $dst || $self->{'cifrouter_id'},
+		apikey => $self->{apikey},
+		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
+	});
+	
 }
 
 use Digest::MD5 qw(md5 md5_hex md5_base64);

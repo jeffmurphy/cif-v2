@@ -272,6 +272,18 @@ sub new {
     return($self);
 }
 
+=pod 
+
+ eg. 
+ 
+ make_control_message(
+  "cif-db",
+  CIF::Msg::MessageType::COMMAND(), 
+  CIF::Msg::MessageType::REGISTER()
+  )
+  
+=cut
+
 sub make_control_message {
 	my $self = shift;
 	my $dst = shift;

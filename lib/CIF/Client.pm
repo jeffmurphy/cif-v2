@@ -131,24 +131,25 @@ sub search {
         push(@queries,$ret) if($ret);
     }        
         
-    my $msg = MessageType->new({
-        version => $CIF::VERSION,
-        type    => MessageType::MsgType::QUERY(),
-        # encode it here, message type only knows about bytes
-        ## TODO -- the Query Packet should have each of these attributes (confidence, nolog, guid, limit)
-        ## query shouldn't be repated the QueryType should foreach ($args->{'query'})
-        data    => \@queries,
-    });
+    my $msg =  $self->get_driver->make_control_message(
+  		"cif-db",
+  		CIF::Msg::ControlType::MsgType::COMMAND(), 
+  		CIF::Msg::ControlType::CommandType::CIF_QUERY_REQUEST()
+  		);
+  	
+    $msg->{queryRequestList} = \@queries;
+
     
     debug('sending query') if($::debug);
-    my ($err,$ret) = $self->send($msg->encode());
+    my ($err, $ret) = $self->get_driver->send_direct($msg);
+    #my ($err,$ret) = $self->send($msg);
     
     return $err if($err);
-    $ret = MessageType->decode($ret);
+    $ret = CIF::Msg::MessageType->decode($ret);
  
-    unless($ret->get_status() == MessageType::StatusType::SUCCESS()){
-        return('failed: '.@{$ret->get_data()}[0]) if($ret->get_status() == MessageType::StatusType::FAILED());
-        return('unauthorized') if($ret->get_status() == MessageType::StatusType::UNAUTHORIZED());
+    unless($ret->get_status() == CIF::Msg::MessageType::StatusType::SUCCESS()){
+        return('failed: '.@{$ret->get_data()}[0]) if($ret->get_status() == CIF::Msg::MessageType::StatusType::FAILED());
+        return('unauthorized') if($ret->get_status() == CIF::Msg::MessageType::StatusType::UNAUTHORIZED());
     }
     return(0) unless($ret->{'data'});
     my $uuid = generate_uuid_ns($args->{'apikey'});
