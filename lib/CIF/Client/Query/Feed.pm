@@ -17,7 +17,7 @@ sub process {
     my $query = {
         query       => $args->{'query'},
         description => 'search '.$args->{'query'},
-        limit       => 1,
+        limit       => $args->{'limit'} || 1,
         
         ## TODO: this is a hack, gatta find a better way to handle these
         feed        => 1,

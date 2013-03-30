@@ -23,24 +23,31 @@ sub new {
     my $class   = shift;
     my $args    = shift;
    
+       print "XXXXX1 ", Dumper($args);  
+   
     my $self = {};
     bless($self,$class);
-    
+        
     my ($err,$ret);
     foreach my $p (@plugins){
+print "doing $p\n";
         ($err,$ret) = $p->process($args);
         return($err) if($err);
         last if($ret);
     }
    
+          print "XXXXX3 ", Dumper($args);  
+   
+   
     $ret = \%$args unless($ret);
+
     $ret = [$ret] unless(ref($ret) eq 'ARRAY');
       
     my $qRequest = {
 		'query' => [],
 		'feed' => 0
     };
-      
+    
     foreach my $qq (@{$ret}){
     	
     	
@@ -57,7 +64,8 @@ sub new {
     
     }
 
-            
+cluck("here");
+            print Dumper($qRequest);
     return (undef, $qRequest);
 }
 
