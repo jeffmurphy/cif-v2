@@ -1,6 +1,51 @@
 package CIF.msg;
+
+message QueryRequest {
+        required string query   = 1;
+        optional bool nolog     = 2;
+}
+
+message QueryRequestList {
+        optional int32 limit        = 1;
+        optional int32 confidence   = 2;
+        repeated QueryRequest query = 3;
+        optional string description = 4;
+        optional bool feed          = 5 [ default = false ];
+}
  
- 
+message QueryResponse {
+    // pulled from RFC 5070 -- IODEF
+    enum RestrictionType {
+        restriction_type_default        = 1;
+        restriction_type_need_to_know   = 2;
+        restriction_type_private        = 3;
+        restriction_type_public         = 4;
+    }
+    
+    message MapType {
+        required string key = 1;
+        required string value = 2;
+    }
+
+    // guid should evolve to the ContactType from IODEF
+    optional string guid                    = 1;
+
+    // TODO: evolve this to Assessment Class
+    optional int32 confidence               = 2;
+
+    // TODO: MLStringType? or even Assessment?
+    // combine with confidence class
+    required string description             = 3;
+    required string ReportTime              = 4;
+    optional RestrictionType restriction    = 5;
+    repeated MapType restriction_map        = 6;
+    repeated MapType group_map              = 7;
+
+    // packed IODEF documents
+    repeated bytes data                     = 8;
+}
+
+
 message RegisterResponse {
 	required int32 REQport = 1;
 	required int32 PUBport = 2;
@@ -29,8 +74,8 @@ message PingRequest {
 // from the above list is used.
 
 message APIKeyRequest {
-	optional string apikey = 1;
-	optional string alias = 2;
+        optional string apikey = 1;
+        optional string alias = 2;
         optional bool restrictedAccess = 3;
         optional bool writeAccess = 4;
         optional string description = 5;
@@ -55,8 +100,8 @@ message APIKeyResponse {
 	optional string description = 5;
 	optional int32 expires = 6; // timestamp,UTC 0=never 
 	optional bool revoked = 7;
-        repeated APIKeyGroup groupsList = 8;
-        repeated string addedByList = 9;
+	repeated APIKeyGroup groupsList = 8;
+	repeated string addedByList = 9;
 	repeated string restrictionsList = 10;
 	optional string parent = 11;
 	optional int32 created = 12;
@@ -101,9 +146,12 @@ message ControlType {
     	APIKEY_GROUPS_DEL    = 18;
     	APIKEY_GROUPS_LIST   = 19;
     	APIKEY_GROUPS_GET    = 20;
+    	
+    	CIF_QUERY_REQUEST    = 21;
+    	CIF_QUERY_RESPONSE   = 22;
     }
     
-    optional double version      = 1 [default = 20130103.00];
+    optional double version      = 1 [default = 20130324.00];
     optional bytes seq           = 2; // used to match commands to replies, must be preserved in replies 
     optional string dst          = 3;
     optional string src          = 4;
@@ -120,6 +168,8 @@ message ControlType {
     optional PingRequest         pingRequest         = 13;
     optional APIKeyRequest       apiKeyRequest       = 14;
     repeated APIKeyResponse      apiKeyResponseList  = 15;
+    optional QueryRequestList    queryRequestList    = 16;
+    repeated QueryResponse       queryResponseList   = 17;
 }
 
 
