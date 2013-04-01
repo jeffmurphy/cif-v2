@@ -96,7 +96,7 @@ sub register {
     my $cm = CIF::Msg::ControlType->new({
 		type => CIF::Msg::ControlType::MsgType::COMMAND(),
 		command => CIF::Msg::ControlType::CommandType::REGISTER(),
-		src => 'cif-smrt',
+		src => $self->{'myid'},
 		dst => 'cif-router',
 		apikey => $self->{apikey},
 		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
@@ -153,7 +153,7 @@ sub unregister {
 	my $cm = CIF::Msg::ControlType->new({
 		type => CIF::Msg::ControlType::MsgType::COMMAND(),
 		command => CIF::Msg::ControlType::CommandType::UNREGISTER(),
-		src => 'cif-smrt',
+		src => $self->{'myid'},
 		dst => 'cif-router',
 		apikey => $self->{apikey},
 		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
@@ -254,9 +254,7 @@ sub send_direct {
 	my $self = shift;
 	my $msg  = shift;
 	return unless defined($msg);
-	
-	print "SD ", Dumper($msg), "\n";
-	
+		
 	my $rv = 
 		$self->send_multipart([$self->add_seq($msg)->encode()]);
 
@@ -291,7 +289,7 @@ sub make_control_message {
 	return CIF::Msg::ControlType->new({
 		type => $t,
 		command => $cmd,
-		src => $self->{'myname'},
+		src => $self->{'myid'},
 		dst => $dst || $self->{'cifrouter_id'},
 		apikey => $self->{apikey},
 		version => CIF::Msg::Support::getOurVersion("Control"), # _required_
