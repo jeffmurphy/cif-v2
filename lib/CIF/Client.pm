@@ -110,7 +110,6 @@ sub search {
     # for our original queries since the server will give us back more 
     # than we asked for
     my $ip_tree = Net::Patricia->new();
-    
     debug('generating query') if($::debug);
     foreach my $q (@{$args->{'query'}}){
         my ($err,$ret) = CIF::Client::Query->new({

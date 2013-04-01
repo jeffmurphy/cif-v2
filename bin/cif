@@ -31,50 +31,82 @@ use lib '../../iodef-pb-simple-perl/lib';
 
 use CIF::Client;
 
-use Getopt::Std;
+use Getopt::Long qw(:config no_ignore_case bundling);
 use Data::Dumper;
 use CIF qw/debug/;
 
 ## TODO -- generate CIF::Format to wrap this
 use Iodef::Pb::Format;
 
-my %opts;
-getopt('D:S:O:G:l:g:THL:p:f:q:c:s:r:C:zP:F', \%opts);
+#my %opts;
+#getopt('D:S:O:G:l:g:THL:p:f:q:c:s:r:C:zP:F', \%opts);
 
-our $debug       = ($opts{'d'}) ? 1 : 0;
+
+our $debug      = 0;
 
 # config opts
-my $config      = $opts{'C'} || $ENV{'HOME'}.'/.cif';
-my $outfile     = $opts{'O'};
-my $query       = $opts{'q'} || shift;
+my $config      = $ENV{'HOME'}.'/.cif';
+my $outfile     = undef;
+my @query       = ();
 
 # query options
-my $nolog       = $opts{'n'} || 0;
-my $confidence  = $opts{'c'} || 0;
-my $guid        = $opts{'g'};
-my $limit       = $opts{'l'} || 500;
+my $nolog       = 0;
+my $confidence  = 0;
+my $guid        = 0;
+my $limit       = 500;
 
 # plugin opts
-my $plugin      = $opts{'p'} || 'Table';
-my $fields      = $opts{'f'};
-my $max_desc    = $opts{'L'} || 100;
-
+my $plugin      = 'Table';
+my $fields      = 0;
+my $max_desc    = 100;
 
 # display options
-my $summary             = $opts{'S'};
-my $nomap               = $opts{'N'};
-our $uuid               = $opts{'u'} || 0;
-our $relateduuid        = $opts{'R'} || 0;
-my $round_confidence    = $opts{'I'} || 0;
-my $group_map           = (defined($opts{'G'})) ? $opts{'G'} : 1;
-my $compress_address    = (defined($opts{'z'})) ? $opts{'z'} : 1;
-my $table_showmeta      = $opts{'M'} || 0;
-my $filter_me           = $opts{'F'};
-my $sortby              = $opts{'S'} || 'detecttime';
-my $sortby_direction    = $opts{'D'} || 'DESC';
+my $summary             = 0;
+my $nomap               = 0;
+our $uuid               = 0;
+our $relateduuid        = 0;
+my $round_confidence    = 0;
+my $group_map           = 1;
+my $compress_address    = 1;
+my $table_showmeta      = 0;
+my $filter_me           = 0;
+my $sortby              = 'detecttime';
+my $sortby_direction    = 'DESC';
 
-die usage() unless($query);
-die usage() if($opts{'h'});
+my $help = 0;
+
+my $gor = GetOptions(
+	"debug|d=i"           => \$debug,
+	"config|C=s"          => \$config,
+	"outfile|O=s"         => \$outfile,
+	"query|q=s@"          => \@query,
+	"nolog|n=i"           => \$nolog,
+	"confidence|c=i"      => \$confidence,
+	"guid|g=s"            => \$guid,
+	"limit|l=i"           => \$limit,
+	"plugin|p=s"          => \$plugin,
+	"fields|f"            => \$fields,
+	"maxdesc|L=i"         => \$max_desc,
+	"help|h"              => \$help,
+	"summary|s"           => \$summary,
+	"nomap|N"             => \$nomap,
+	"uuid"                => \$uuid,
+	"relateduuid"         => \$relateduuid,
+	"roundconfidence|I"   => \$round_confidence,
+	"groupmap|G"          => \$group_map,
+	"compressaddress|z"   => \$compress_address,
+	"tableshowmeta|M"     => \$table_showmeta,
+	"filterme|F"          => \$filter_me,
+	"sortby|S=s"          => \$sortby,
+	"sortbydirection|D=s" => \$sortby_direction 
+	);
+	
+
+
+
+
+die usage() unless($#query > -1);
+die usage() if($help);
 
 sub usage {
     return <<EOF;
@@ -86,7 +118,7 @@ Standard Options:
     
 Query Options:
     -q  --query:            query string
-
+	
     -n  --nolog:            perform a "silent" query (no log query), default: $nolog
     -l  --limit:            set the default result limit (queries only), default is set on server, usually around 500.
     -c  --confidence:       lowest tolerated confidence (0.00 -- 100.00), default $confidence
@@ -117,6 +149,11 @@ Example Queries:
     \$> perl $0 -q infrastructure/network -p Snort
     \$> perl $0 -q domain/malware -p bindzone -c 95
     \$> perl $0 -q domain -c 40
+    
+    only return botnets for the specified netblock
+    
+    \$> perl $0 -q infrastructure/botnet,1.2.3.0/24 -p Snort
+    
 
 Configuration:
 
@@ -176,10 +213,9 @@ if($outfile){
     open(F,">",$outfile) || die($!);
 }
 
-my @q = split(/,/,$query);
 my $ret;
 ($err,$ret) = $cli->search({
-    query               => \@q,
+    query               => \@query,
     filter_me           => $filter_me,
     nolog               => $nolog,
     no_maprestrictions  => $nomap,

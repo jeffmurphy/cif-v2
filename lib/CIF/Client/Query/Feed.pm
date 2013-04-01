@@ -12,7 +12,8 @@ sub process {
     return unless($args->{'query'} =~ $regex);
     
     my @bits = split(/\//,$args->{'query'});
-    $args->{'query'} = join(' ',reverse(@bits)).' feed';
+    # reworked in v3
+    #$args->{'query'} = join(' ',reverse(@bits)).' feed';
     
     my $query = {
         query       => $args->{'query'},

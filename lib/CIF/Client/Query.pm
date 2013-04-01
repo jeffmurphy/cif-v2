@@ -22,22 +22,16 @@ __PACKAGE__->mk_accessors(qw(
 sub new {
     my $class   = shift;
     my $args    = shift;
-   
-       print "XXXXX1 ", Dumper($args);  
-   
+      
     my $self = {};
     bless($self,$class);
         
     my ($err,$ret);
     foreach my $p (@plugins){
-print "doing $p\n";
         ($err,$ret) = $p->process($args);
         return($err) if($err);
         last if($ret);
-    }
-   
-          print "XXXXX3 ", Dumper($args);  
-   
+    }   
    
     $ret = \%$args unless($ret);
 
@@ -48,11 +42,13 @@ print "doing $p\n";
 		'feed' => 0
     };
     
+    
     foreach my $qq (@{$ret}){
-    	
+    print "query ". $qq->{query}."\n";
     	
         $qq->{'query'} = lc($qq->{'query'});
-        $qq->{'query'} = sha1_hex($qq->{'query'}) unless($qq->{'query'} =~ /^[a-f0-9]{32,40}$/ || is_uuid($qq->{'query'}) );
+        # reworked in v3
+        #$qq->{'query'} = sha1_hex($qq->{'query'}) unless($qq->{'query'} =~ /^[a-f0-9]{32,40}$/ || is_uuid($qq->{'query'}) );
         
         ## don't ask, its' all crap.
         $qRequest->{'limit'}        = $qq->{'limit'} if($qq->{'limit'});
@@ -64,8 +60,6 @@ print "doing $p\n";
     
     }
 
-cluck("here");
-            print Dumper($qRequest);
     return (undef, $qRequest);
 }
 
