@@ -101,7 +101,7 @@ class Foundation(object):
         # the event loop thread. a daemon so that if our main thread exits,
         # this thread doesn't keep the process alive
         
-        self.evthread = threading.Thread(target=self.eventloop, args=())
+        self.evthread = threading.Thread(target=self.eventloop, name="Foundation Ctrlsocket Eventloop daemon", args=())
         self.evthread.daemon = True
         self.evthread.start()
         
@@ -233,9 +233,15 @@ class Foundation(object):
             raise Exception("Router has a problem with us? " + msg.status)
         
     def ctrlc(self):
+        ac = threading.activeCount()
         if self.debug > 0:
-            print "Shutting down."
+            print "Shutting down Foundation."
+            for t in threading.enumerate():
+                print "\tactive thread: " + t.name
+        #print "Active threads: " + str(ac)
         self.unregister()
+        #if self.evthread.isAlive() == True:
+        #    print "Event thread is alive."
         sys.exit(0)
     
     def ctrl(self):
@@ -265,6 +271,10 @@ class Foundation(object):
                 msg = r[1]
                 decoded_msg = control_pb2.ControlType()
                 decoded_msg.ParseFromString(msg)
+                control_command = 0
+                if decoded_msg.type == control_pb2.ControlType.COMMAND:
+                    control_command = decoded_msg.command
+                
                 print ti + "] eventloop: msg: ", decoded_msg
                 try:
                     cifsupport.versionCheck(decoded_msg)
@@ -275,15 +285,17 @@ class Foundation(object):
         
                     if msgid in self.callback_registry:
                         if self.debug > 2:
-                            print ti + "] eventloop: Callback specified. Calling it."
-                        # create a separate thread so the callback doesn't influence the event loop
+                            print ti + "] eventloop: Callback specified. Calling it.", self.callback_registry
                         
-                        cbthread = threading.Thread(target = self.callback_registry[msgid], args=(decoded_msg,))
+                        # create a separate thread so the callback doesn't influence the event loop
+                        # these threads should be short lived
+                        
+                        cbthread = threading.Thread(target = self.callback_registry[msgid], name="callback:" + str(control_command), args=(decoded_msg,))
                         cbthread.start()
                         del self.callback_registry[msgid]
                     else:
                         if self.defaultcallback != None:
-                            dcbthread = threading.Thread(target = self.defaultcallback, args=(decoded_msg,))
+                            dcbthread = threading.Thread(target = self.defaultcallback, name="defaultcallback:" + str(control_command), args=(decoded_msg,))
                             dcbthread.start()
                         else:
                             if self.debug > 2:
