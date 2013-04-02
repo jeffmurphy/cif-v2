@@ -41,8 +41,9 @@ message QueryResponse {
     repeated MapType restriction_map        = 6;
     repeated MapType group_map              = 7;
 
-    // packed IODEF documents
-    repeated bytes data                     = 8;
+    // packed documents of type specified in baseObjectType (eg IODEF documents)
+    repeated strings baseObjectType         = 8;
+    repeated bytes data                     = 9;
 }
 
 
