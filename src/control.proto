@@ -42,7 +42,7 @@ message QueryResponse {
     repeated MapType group_map              = 7;
 
     // packed documents of type specified in baseObjectType (eg IODEF documents)
-    repeated strings baseObjectType         = 8;
+    repeated string baseObjectType          = 8;
     repeated bytes data                     = 9;
 }
 
