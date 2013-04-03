@@ -261,8 +261,8 @@ sub send_direct {
 	print "send_direct: Waiting for reply\n" if $self->{D};
 	
 	my $reply = $self->recv_multipart();
-	
-	return $reply;
+
+	return (undef, $reply->[0]);
 #	$cm = CIF::Msg::ControlType->decode($reply->[0]);
 }
 

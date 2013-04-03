@@ -113,27 +113,28 @@ sub usage {
 Usage: perl $0 -q xyz.com
 
 Standard Options:
-    -h  --help:             this message
-    -C  --config:           specify cofiguration file, default: $config
+    -h   --help:             this message
+    -C   --config:           specify cofiguration file, default: $config
+    -d # --debug:            debug level
     
 Query Options:
-    -q  --query:            query string
+    -q   --query:            query string
 	
-    -n  --nolog:            perform a "silent" query (no log query), default: $nolog
-    -l  --limit:            set the default result limit (queries only), default is set on server, usually around 500.
-    -c  --confidence:       lowest tolerated confidence (0.00 -- 100.00), default $confidence
+    -n   --nolog:            perform a "silent" query (no log query), default: $nolog
+    -l   --limit:            set the default result limit (queries only), default is set on server, usually around 500.
+    -c   --confidence:       lowest tolerated confidence (0.00 -- 100.00), default $confidence
     
 Format Options:
-    -p  --plugin:           output plugin ('Table','Snort','Csv'), default: Table
-    -f  --fields:           set default output fields for default table display
-    -S  --summary:          consolidated Text::Table output (default: True)
-    -N  --nomap:            don't map restrictions
-    -g  --guid:             filter by a specific group id (guid), ex: group1.example.com
-    -G  --groupmap:         turn group mapping (guid to 'group name') on/off, default: $group_map
+    -p   --plugin:           output plugin ('Table','Snort','Csv'), default: Table
+    -f   --fields:           set default output fields for default table display
+    -S   --summary:          consolidated Text::Table output (default: True)
+    -N   --nomap:            don't map restrictions
+    -g   --guid:             filter by a specific group id (guid), ex: group1.example.com
+    -G   --groupmap:         turn group mapping (guid to 'group name') on/off, default: $group_map
     
 Nonstandard Options:
-    -z                      compact address field to 32 chars, applies only to defalt table output, default: 1 (0 turns it off)
-    -I  --round_confidence: round (down) confidence to the nearest integer
+    -z                       compact address field to 32 chars, applies only to defalt table output, default: 1 (0 turns it off)
+    -I   --roundconfidence:  round (down) confidence to the nearest integer
 
 Example Queries:
 
@@ -228,40 +229,56 @@ unless($ret){
     debug('no results...') if($debug);
     exit(0);
 }
-
-my $feeds = $ret;
+ 
+my $responses = $ret;
 
 debug('formatting as '.ucfirst($plugin).'...');
 my @text;
-foreach my $feed (@$feeds){
-    next unless($feed->get_data());
 
-    my $r_map = ($nomap) ? undef : $feed->get_restriction_map();
-    my $t = Iodef::Pb::Format->new({
-        format              => ucfirst($plugin),
-        group_map           => $feed->get_group_map(),
-        restriction_map     => $r_map,
-        data                => $feed->get_data(),
-        compress_address    => $compress_address,
-        confidence          => $feed->get_confidence(),
-        guid                => $feed->get_guid(),
-        uuid                => $feed->get_uuid(),
-        description         => $feed->get_description(),
-        restriction         => $feed->get_restriction(),
-        reporttime          => $feed->get_ReportTime(),
-        table_nowarning     => $cli->get_table_nowarning(),
-        config              => $cli->get_config(),
-        table_uuid          => $uuid,
-        table_relatedid     => $relateduuid,
-        table_showmeta      => $table_showmeta,
-        sortby              => $sortby,
-        sortby_direction    => $sortby_direction,
-    });
-    
-    $t .= "\n";
-    
-    ## TODO -- add feed meta data to this.
-    push(@text,$t);
+
+foreach my $response (@$responses){
+	for (my $row = 0 ; $row <= $#{$response->{baseObjectType}} ; $row++) {
+		my $bot = $response->{baseObjectType}->[$row];
+		my $rowdata = $response->{data}->[$row];
+		
+		debug ("baseObjectType: $bot") if $debug;
+	
+		my $r_map = ($nomap) ? undef : $response->get_restriction_map();
+		my $t = "";
+		
+		if ($bot eq "RFC5070_IODEF_v1_pb2") {
+			my $unpacked = IODEFDocumentType->decode($rowdata);
+			print Dumper($unpacked) . "\n";
+		    $t = Iodef::Pb::Format->new({
+		        format              => ucfirst($plugin),
+		        group_map           => $unpacked->get_group_map(),
+		        restriction_map     => $r_map,
+		        data                => $unpacked->get_data(),
+		        compress_address    => $compress_address,
+		        confidence          => $unpacked->get_confidence(),
+		        guid                => $unpacked->get_guid(),
+		        uuid                => $unpacked->get_uuid(),
+		        description         => $unpacked->get_description(),
+		        restriction         => $unpacked->get_restriction(),
+		        reporttime          => $unpacked->get_ReportTime(),
+		        table_nowarning     => $cli->get_table_nowarning(),
+		        config              => $cli->get_config(),
+		        table_uuid          => $uuid,
+		        table_relatedid     => $relateduuid,
+		        table_showmeta      => $table_showmeta,
+		        sortby              => $sortby,
+		        sortby_direction    => $sortby_direction,
+		    });
+	    
+	    }
+		# stix/taxi/meac/etc here
+	
+	
+	    $t .= "\n";
+	    
+	    ## TODO -- add feed meta data to this.
+	    push(@text,$t);
+	  }
 }
 
 if($outfile){

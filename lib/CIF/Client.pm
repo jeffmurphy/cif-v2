@@ -144,30 +144,39 @@ sub search {
     #my ($err,$ret) = $self->send($msg);
     
     return $err if($err);
-    $ret = CIF::Msg::MessageType->decode($ret);
+    $ret = CIF::Msg::ControlType->decode($ret);
  
-    unless($ret->get_status() == CIF::Msg::MessageType::StatusType::SUCCESS()){
-        return('failed: '.@{$ret->get_data()}[0]) if($ret->get_status() == CIF::Msg::MessageType::StatusType::FAILED());
-        return('unauthorized') if($ret->get_status() == CIF::Msg::MessageType::StatusType::UNAUTHORIZED());
+    unless($ret->get_status() == CIF::Msg::ControlType::StatusType::SUCCESS()){
+        return('failed: '.@{$ret->get_data()}[0]) if($ret->get_status() == CIF::Msg::ControlType::StatusType::FAILED());
+        return('unauthorized') if($ret->get_status() == CIF::Msg::ControlType::StatusType::UNAUTHORIZED());
     }
-    return(0) unless($ret->{'data'});
+    
+    return (undef,$ret->{'queryResponseList'});
+    
+    #NOTREACHED
+    return(0) unless($ret->{'queryResponseList'}->{'data'});
+    
     my $uuid = generate_uuid_ns($args->{'apikey'});
 
     debug('decoding...') if($::debug);
-        ## TODO: finish this so feeds are inline with reg queries
-    ## TODO: try to base64 decode and decompress first in try { } catch;
+    
+        return(undef,$ret->get_data());
+    
     foreach my $feed (@{$ret->get_data()}){
         my @array;
         my $err;
         my $test;
-        try {
-            $test = Compress::Snappy::decompress(decode_base64($feed));
-        } catch {
-            $err = shift;
-        };
-        $feed = $test if($test);
-        $err = undef;
-
+        
+        if (0){
+	        try {
+	            $test = Compress::Snappy::decompress(decode_base64($feed));
+	        } catch {
+	            $err = shift;
+	        };
+	        $feed = $test if($test);
+	        $err = undef;
+        }
+        
         try {
             $feed = FeedType->decode($feed);
         } catch {
@@ -180,7 +189,7 @@ sub search {
         my %uuids;
         debug('processing: '.$#{$feed->get_data}.' items') if($::debug);
         foreach my $e (@{$feed->get_data()}){
-            $e = Compress::Snappy::decompress(decode_base64($e));
+            #$e = Compress::Snappy::decompress(decode_base64($e));
             $e = IODEFDocumentType->decode($e);
             if($filter_me){
                 my $id = @{$e->get_Incident()}[0]->get_IncidentID->get_name();

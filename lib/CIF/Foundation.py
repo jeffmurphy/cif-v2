@@ -275,7 +275,7 @@ class Foundation(object):
                 if decoded_msg.type == control_pb2.ControlType.COMMAND:
                     control_command = decoded_msg.command
                 
-                print ti + "] eventloop: msg: ", decoded_msg
+                print ti + "] eventloop: msg: src=", decoded_msg.src, " dst=", decoded_msg.dst
                 try:
                     cifsupport.versionCheck(decoded_msg)
                     
