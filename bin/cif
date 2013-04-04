@@ -248,19 +248,19 @@ foreach my $response (@$responses){
 		
 		if ($bot eq "RFC5070_IODEF_v1_pb2") {
 			my $unpacked = IODEFDocumentType->decode($rowdata);
-			print Dumper($unpacked) . "\n";
+
 		    $t = Iodef::Pb::Format->new({
 		        format              => ucfirst($plugin),
-		        group_map           => $unpacked->get_group_map(),
-		        restriction_map     => $r_map,
-		        data                => $unpacked->get_data(),
+		        #group_map           => $unpacked->get_group_map(),
+		        #restriction_map     => $r_map,
+		        data                => $unpacked,
 		        compress_address    => $compress_address,
-		        confidence          => $unpacked->get_confidence(),
-		        guid                => $unpacked->get_guid(),
-		        uuid                => $unpacked->get_uuid(),
-		        description         => $unpacked->get_description(),
-		        restriction         => $unpacked->get_restriction(),
-		        reporttime          => $unpacked->get_ReportTime(),
+		        confidence          => get_confidence($unpacked),
+		        #guid                => $unpacked->get_guid(),
+		        #uuid                => $unpacked->get_uuid(),
+		        description         => get_description($unpacked),
+		        restriction         => get_restriction($unpacked),
+		        reporttime          => get_reporttime($unpacked),
 		        table_nowarning     => $cli->get_table_nowarning(),
 		        config              => $cli->get_config(),
 		        table_uuid          => $uuid,
@@ -292,3 +292,25 @@ if($outfile){
     }
 }
 debug('done');
+exit 0;
+
+sub get_confidence {
+	my $iod = shift;
+	return $iod->{Incident}->[0]->{Assessment}->[0]->{Confidence}->{content};
+}
+
+sub get_description {
+	my $iod = shift;
+	return $iod->{Incident}->[0]->{Description}->[0]->{content};
+}
+
+sub get_reporttime {
+	my $iod = shift;
+	return $iod->{Incident}->[0]->{ReportTime};
+}
+
+sub get_restriction {
+	my $iod = shift;
+	return $iod->{Incident}->[0]->{restriction};
+}
+
