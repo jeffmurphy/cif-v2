@@ -44,7 +44,6 @@ sub new {
     
     
     foreach my $qq (@{$ret}){
-    print "query ". $qq->{query}."\n";
     	
         $qq->{'query'} = lc($qq->{'query'});
         # reworked in v3

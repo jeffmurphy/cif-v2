@@ -189,7 +189,7 @@ sub new {
     my $self = {};
     bless($self,$class);
     
-    $self->{D} = 1;
+    $self->{D} = 0;
 		
     $self->{'controlport'} = $args->{config}->{'zmq_controlport'};
     $self->{'publisherport'} = $args->{config}->{'zmq_publisherport'};
@@ -283,9 +283,7 @@ sub make_control_message {
 	my $dst = shift;
 	my $t = shift;
 	my $cmd = shift;
-	
-	print Dumper($self), "\n";
-	
+		
 	return CIF::Msg::ControlType->new({
 		type => $t,
 		command => $cmd,
