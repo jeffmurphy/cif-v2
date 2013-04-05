@@ -260,12 +260,12 @@ foreach my $response (@$responses){
         #restriction_map     => $r_map,
         data                => \@iodef, #$unpacked,
         compress_address    => $compress_address,
-        confidence          => $response->{confidence}, #get_confidence($unpacked),
+        confidence          => $response->{confidence}, 
         #guid                => $unpacked->get_guid(),
         #uuid                => $unpacked->get_uuid(),
-        description         => $response->{description}, #get_description($unpacked),
-        restriction         => $response->{restriction}, #get_restriction($unpacked),
-        reporttime          => $response->{ReportTime}, #get_reporttime($unpacked),
+        description         => $response->{description},
+        restriction         => $response->{restriction},
+        reporttime          => $response->{ReportTime},
         table_nowarning     => $cli->get_table_nowarning(),
         config              => $cli->get_config(),
         table_uuid          => $uuid,
@@ -298,23 +298,4 @@ if($outfile){
 debug('done');
 exit 0;
 
-sub get_confidence {
-	my $iod = shift;
-	return $iod->{Incident}->[0]->{Assessment}->[0]->{Confidence}->{content};
-}
-
-sub get_description {
-	my $iod = shift;
-	return $iod->{Incident}->[0]->{Description}->[0]->{content};
-}
-
-sub get_reporttime {
-	my $iod = shift;
-	return $iod->{Incident}->[0]->{ReportTime};
-}
-
-sub get_restriction {
-	my $iod = shift;
-	return $iod->{Incident}->[0]->{restriction};
-}
 
