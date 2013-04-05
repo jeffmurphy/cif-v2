@@ -235,6 +235,7 @@ my $responses = $ret;
 debug('formatting as '.ucfirst($plugin).'...');
 my @text;
 
+my @iodef;
 
 foreach my $response (@$responses){
 	for (my $row = 0 ; $row <= $#{$response->{baseObjectType}} ; $row++) {
@@ -244,41 +245,44 @@ foreach my $response (@$responses){
 		debug ("baseObjectType: $bot") if $debug;
 	
 		my $r_map = ($nomap) ? undef : $response->get_restriction_map();
-		my $t = "";
 		
 		if ($bot eq "RFC5070_IODEF_v1_pb2") {
 			my $unpacked = IODEFDocumentType->decode($rowdata);
+			push @iodef, $unpacked;
+		}
+	}
 
-		    $t = Iodef::Pb::Format->new({
-		        format              => ucfirst($plugin),
-		        #group_map           => $unpacked->get_group_map(),
-		        #restriction_map     => $r_map,
-		        data                => $unpacked,
-		        compress_address    => $compress_address,
-		        confidence          => get_confidence($unpacked),
-		        #guid                => $unpacked->get_guid(),
-		        #uuid                => $unpacked->get_uuid(),
-		        description         => get_description($unpacked),
-		        restriction         => get_restriction($unpacked),
-		        reporttime          => get_reporttime($unpacked),
-		        table_nowarning     => $cli->get_table_nowarning(),
-		        config              => $cli->get_config(),
-		        table_uuid          => $uuid,
-		        table_relatedid     => $relateduuid,
-		        table_showmeta      => $table_showmeta,
-		        sortby              => $sortby,
-		        sortby_direction    => $sortby_direction,
-		    });
-	    
-	    }
-		# stix/taxi/meac/etc here
+	my $t = "";
+	
+    $t .= Iodef::Pb::Format->new({
+        format              => ucfirst($plugin),
+        #group_map           => $unpacked->get_group_map(),
+        #restriction_map     => $r_map,
+        data                => \@iodef, #$unpacked,
+        compress_address    => $compress_address,
+        confidence          => $response->{confidence}, #get_confidence($unpacked),
+        #guid                => $unpacked->get_guid(),
+        #uuid                => $unpacked->get_uuid(),
+        description         => $response->{description}, #get_description($unpacked),
+        restriction         => $response->{restriction}, #get_restriction($unpacked),
+        reporttime          => $response->{ReportTime}, #get_reporttime($unpacked),
+        table_nowarning     => $cli->get_table_nowarning(),
+        config              => $cli->get_config(),
+        table_uuid          => $uuid,
+        table_relatedid     => $relateduuid,
+        table_showmeta      => $table_showmeta,
+        sortby              => $sortby,
+        sortby_direction    => $sortby_direction,
+    }) 	if ($#iodef > -1);
+    
+
 	
 	
-	    $t .= "\n";
-	    
-	    ## TODO -- add feed meta data to this.
-	    push(@text,$t);
-	  }
+	$t .= "\n";
+	
+	## TODO -- add feed meta data to this.
+	push(@text,$t);
+	  
 }
 
 if($outfile){
