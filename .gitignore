@@ -45,3 +45,5 @@ src/pb-perl/lib/CIF/Msg/Control.pm
 src/pb-perl/lib/CIF/Msg/Control.pm
 src/pb-perl/lib/mmdef_pb2.pm
 src/pb-perl/lib/CIF/Msg/Profile.pm
+src/pb-perl/lib/CIF/_Msg.pm
+src/pb-perl/lib/CIF/Msg/Feed.pm
