@@ -42,6 +42,7 @@ use CIF qw/debug/;
 my %opts;
 getopts('HVdC:S:R:c:D:l:h',\%opts);
 
+
 our $debug          = $opts{'d'};
 my $config          = $opts{'C'} || $ENV{'HOME'}.'/.cif';
 my $specific_feed   = $opts{'S'};
@@ -66,7 +67,7 @@ my ($err,$obj) = CIF::Feed->new({
 
 die($err."\n\n") if($err);
 
-die usage() if($opts{'h'});
+die usage() if(exists $opts{'h'});
 
 sub usage {
     my $usage_feeds = '['.join("|",@{$obj->get_feeds()}).']';
