@@ -9,7 +9,7 @@ use warnings;
 use CIF::APIKey;
 
 use CIF qw/is_uuid generate_uuid_random generate_uuid_ns/;
-use Digest::SHA1 qw/sha1_hex/;
+use Digest::SHA qw/sha1_hex/;
 
 __PACKAGE__->follow_best_practice();
 __PACKAGE__->mk_accessors(qw(config db_config));
@@ -125,6 +125,10 @@ sub key_remove {
 		cluck("APIKEYS_DEL failed");
 	}
 	
+}
+
+sub user_rename {
+	croak("not implemented");
 }
 
 sub key_toggle_write {

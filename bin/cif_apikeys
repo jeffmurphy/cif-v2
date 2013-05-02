@@ -5,7 +5,7 @@ use strict;
 # fix lib paths, some may be relative
 BEGIN {
     require File::Spec;
-    my @libs = ("lib", "local/lib", "/usr/local/lib/cif-protocol/pb-perl/lib/");
+    my @libs = ("lib", "local/lib", "../libcif/lib", "/usr/local/lib/cif-protocol/pb-perl/lib/");
     my $bin_path;
 
     for my $lib (@libs) {
@@ -27,8 +27,6 @@ BEGIN {
 
 }
 
-use lib '../libcif/lib';
-
 use Getopt::Std;
 use CIF qw/generate_uuid_ns is_uuid/;
 use CIF::Profile;
@@ -39,7 +37,7 @@ use Data::Dumper;
 use CIF::Foundation;
 
 my %opts;
-getopt('E:G:g:k:u:c:R:h', \%opts);
+getopt('t:E:G:g:k:u:C:R:L:hd', \%opts);
 die(usage()) if(exists $opts{'h'});
 
 my $user            = $opts{'u'};
@@ -54,9 +52,11 @@ my $delete          = $opts{'d'};
 my $add             = $opts{'a'};
 my $parentid        = $opts{'p'};
 my $expires         = $opts{'E'};
-my $config          = $opts{'c'} || $ENV{'HOME'}.'/.cif';
+my $config          = $opts{'C'} || $ENV{'HOME'}.'/.cif';
 my $restricted      = $opts{'R'};
 my $quiet           = $opts{'q'};
+my $rename          = $opts{'t'};
+our $debug           = $opts{'d'} || 0;
 
 if($user){
     die(usage()) unless($key || $opts{'l'} || $opts{'a'} || $opts{'d'});
@@ -64,11 +64,13 @@ if($user){
 
 sub usage {
     return <<EOF;
-Usage: perl $0 -a -u joe\@example.com
+Usage: perl $0 {options...}
 
 Basic:
     -h  --help:             this meessage
 
+    -C  --config:           configuration file, default: $config
+    -u  --user:             specify user alias (root\@localhost)
     -a  --add:              add key
     -d  --delete:           delete key
     -k  --key:              apikey
@@ -82,16 +84,33 @@ Advanced:
     -g  --groups:           add user to list of groups (eg: everyone,group1,group2)
     -G  --default group:    set the default group (defaults to: everyone)
     -D  --desc:             give the key an optional description
+    -t  --rename:           rename a user alias
 
 Examples:
-    \$> perl $0 -a -u joe\@example.com
-    \$> perl $0 -a -u joe\@example.com -g everyone,group2 -G everyone
-    \$> perl $0 -d -k 96818121-f1b6-482e-8851-8fb49cb2f6c0
-    \$> perl $0 -u joe\@example.com -e infrastructure -a -g everyone -G everyone
-    \$> perl $0 -k 96818121-f1b6-482e-8851-8fb49cb2f6c0 -w
-    \$> perl $0 -k 96818121-f1b6-482e-8851-8fb49cb2f6c0 -r
-    \$> perl $0 -a -u joe\@example.com -E 2020-12-30T23:59:59Z
-    \$> perl $0 -l
+
+Basic:
+    $0 -l
+    $0 -l -u joe\@example.com
+    $0 -u joe\@example.com -a -g everyone,group2 -G everyone
+    $0 -d -k 96818121-f1b6-482e-8851-8fb49cb2f6c0
+    
+Advanced:
+
+Adding a user's key to another group:
+    $0 -k 96818121-f1b6-482e-8851-8fb49cb2f6c0 -g group2,group3
+
+Setting Read/Write access to a key:
+    $0 -k 96818121-f1b6-482e-8851-8fb49cb2f6c0 -w
+    $0 -k 96818121-f1b6-482e-8851-8fb49cb2f6c0 -r
+    
+Enabling specific queries for a user:
+    $0 -u joe\@example.com -e infrastructure -a -a everyone -G everyone
+    
+Setting an expiration date for a user:
+    $0 -u joe\@example.com -E 2020-12-30T23:59:59Z
+    
+Rename a user alias:
+    $0 -u joe\@example.com -t bob\@example.com
 EOF
 }
 
@@ -170,6 +189,13 @@ if($add){
         key     => $key,
         group   => $opts{'G'},
     });
+} elsif($rename){
+    my $ret = $profile->user_rename({
+        user    => $user,
+        rename  => $rename,
+    });
+    print $ret.' users renamed...'."\n";
+    $user = $rename;
 } else {
     if($expires){
         die(usage()) unless($key);
