@@ -6,6 +6,7 @@ use warnings;
 
 use CIF qw(generate_uuid_random);
 use Iodef::Pb::Simple ':all';
+use Regexp::Common qw/net/;
 
 my @postprocessors = CIF::Smrt->plugins();
 @postprocessors = grep(/Postprocessor::[0-9a-zA-Z_]+$/,@postprocessors);
@@ -19,14 +20,13 @@ sub process {
     my @new_incidents;
     
     foreach my $i (@{$data->get_Incident()}){
-        #next unless($i->get_purpose && $i->get_purpose == IncidentType::IncidentPurpose::Incident_purpose_mitigation());
         next unless($i->get_EventData());
         my $restriction = $i->get_restriction();
         
         my $assessment = $i->get_Assessment();
         my $impact = iodef_impacts_first($i);
         
-        my $description = $i->get_Description->get_content();
+        my $description = @{$i->get_Description}[0]->get_content();
         my $confidence = @{$assessment}[0]->get_Confidence();
         $confidence = $confidence->get_content();
         $confidence = $class->degrade_confidence($confidence);
@@ -38,6 +38,10 @@ sub process {
                 $guid = $_->get_content();
             }
         }
+        
+        my $altids = $i->get_RelatedActivity();
+        $altids = $altids->get_IncidentID() if($altids);
+        
         foreach my $e (@{$i->get_EventData()}){
             $restriction = $e->get_restriction() if($e->get_restriction());
             my @flows = (ref($e->get_Flow()) eq 'ARRAY') ? @{$e->get_Flow()} : $e->get_Flow();
@@ -63,6 +67,15 @@ sub process {
                             foreach my $rr (@$ret){
                                 next unless($rr->type() =~ /^(A|CNAME)$/);
                                 my $thing = ($rr->type() eq 'A') ? $rr->address() : $rr->cname();
+                                
+                                # verify to be sure we're not getting back garbage
+                                if($rr->type() eq 'A'){
+                                    $thing = $rr->address();
+                                    next unless($thing =~ /^$RE{'net'}{'IPv4'}/);
+                                } else {
+                                    $thing = $rr->cname();
+                                    next unless($thing =~ /^[a-zA-Z0-9.-]+\.[a-z]{2,8}$/);
+                                }
                                 push(@additional_data,ExtensionType->new({
                                         dtype       => ExtensionType::DtypeType::dtype_type_string(),
                                         formatid    => $rr->type(),
@@ -82,13 +95,14 @@ sub process {
                                     assessment      => $impact->get_content()->get_content(),
                                     confidence      => $confidence,
                                     RelatedActivity => RelatedActivityType->new({
-                                        IncidentID  => $i->get_IncidentID(),
+                                        IncidentID  => [ $i->get_IncidentID() ],
                                         restriction => $restriction,
                                     }),
                                     restriction     => $restriction,
                                     guid            => $guid,
                                     portlist        => $portlist,
                                     ip_protocol     => $protocol,
+                                    AlternativeID   => $i->get_AlternativeID(),
                                 });
                                 # block against CDN's that might thrash us into a for-loop of darkness
                                 if($confidence > 15){
@@ -98,9 +112,7 @@ sub process {
                                     }
                                 }
                                 push(@new_incidents,@{$new->get_Incident()});
-                                my $altids = $i->get_RelatedActivity();
-                                push(@$altids, RelatedActivityType->new({IncidentID => $id, restriction => $restriction }));
-                                $i->set_RelatedActivity($altids);
+                                push(@$altids,$id);
                             }
                         }
                     }
@@ -112,6 +124,13 @@ sub process {
                     }
                 }
             }
+        }
+        if($altids){
+            $i->set_RelatedActivity(
+                RelatedActivityType->new({
+                    IncidentID  => $altids,
+                })
+            );
         }
     }
     return(\@new_incidents);

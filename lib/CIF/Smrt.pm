@@ -101,10 +101,12 @@ sub init {
     $self->set_apikey(          $args->{'apikey'}           || $self->get_config->{'apikey'}            || return('missing apikey'));
     $self->set_proxy(           $args->{'proxy'}            || $self->get_config->{'proxy'});
    
-    $self->init_postprocessors($args);
+    ($err,$ret) = $self->init_postprocessors($args);
+    return($err) if($err);
     
     if($self->get_postprocess()){
         debug('postprocessing enabled...') if($::debug);
+        debug('processors: '.join(',',@{$self->get_postprocess()})) if($::debug > 1);
     } else {
         debug('postprocessing disabled...') if($::debug);
     }
@@ -141,6 +143,7 @@ sub init_postprocessors {
             }
         }
     }
+    return(undef,1);
 }
 
 sub init_config {
@@ -150,7 +153,22 @@ sub init_config {
     # do this here, we'll do the setup within the sender_routine (thread)
     $self->set_client_config($args->{'config'});
     
-    $args->{'config'} = Config::Simple->new($args->{'config'}) || return('missing config file');
+    my $err;
+    try {
+        $args->{'config'} = Config::Simple->new($args->{'config'});
+    } catch {
+        $err = shift;
+    };
+    
+    unless($args->{'config'}){
+        return('unknown or missing config: '.$self->get_client_config());
+    }
+    if($err){
+        my @errmsg;
+        push(@errmsg,'something is broken in your local config: '.$args->{'config'});
+        push(@errmsg,'this is usually a syntax error problem, double check '.$args->{'config'}.' and try again');
+        return(join("\n",@errmsg));
+    }
     
     $self->set_config(          $args->{'config'}->param(-block => 'cif_smrt'));
     $self->set_feeds_config(    $args->{'config'}->param(-block => 'cif_feeds'));
@@ -175,7 +193,22 @@ sub init_rules {
     my $self = shift;
     my $args = shift;
     
-    $args->{'rules'} = Config::Simple->new($args->{'rules'}) || return(undef,'missing rules file');
+    my $rulesfile = $args->{'rules'};
+    my ($err,@errmsg);
+    try {
+        $args->{'rules'} = Config::Simple->new($args->{'rules'});
+    } catch {
+        $err = shift;
+    };
+    
+    return('missing or unknown rules configuration: '.$rulesfile) unless($args->{'rules'});
+    
+    if($err){
+        my @errmsg;
+        push(@errmsg,'there is something broken with: '.$rulesfile);
+        push(@errmsg,'this is usually a syntax problem, double check '.$rulesfile.' and try again');
+        return(join("\n",@errmsg));
+    }
     
     unless($args->{'feed'}){
         my @sections = keys %{$args->{'rules'}->{'_DATA'}};
@@ -193,9 +226,12 @@ sub init_rules {
    
     map { $defaults->{$_} = $rules->{$_} } keys (%$rules);
     
-    unless(is_uuid($defaults->{'guid'})){
-        $defaults->{'guid'} = generate_uuid_url($defaults->{'guid'});
+    if($defaults->{'guid'}){
+        unless(is_uuid($defaults->{'guid'})){
+            $defaults->{'guid'} = generate_uuid_url($defaults->{'guid'});
+        }
     }
+
     $self->set_rules($defaults);
     return(undef,1);
 }
@@ -215,6 +251,8 @@ sub pull_feed {
     
     # auto-decode the content if need be
     $ret = _decode($ret,$f);
+
+    return(undef,$ret) if($f->{'cif'} && $f->{'cif'} eq 'true');
 
     # encode to utf8
     $ret = encode_utf8($ret);
@@ -238,7 +276,7 @@ sub _pull_feed {
         }
     }
     my @pulls = __PACKAGE__->plugins();
-    @pulls = grep(/::Pull::/,@pulls);
+    @pulls = sort grep(/::Pull::/,@pulls);
     foreach(@pulls){
         my ($err,$ret) = $_->pull($f);
         return('ERROR: '.$err) if($err);
@@ -260,13 +298,22 @@ sub parse {
         $f->{'proxy'} = $self->get_proxy();
     }
     
+    return 'feed does not exist' unless($f->{'feed'});
+    debug('pulling feed: '.$f->{'feed'}) if($::debug);
+    if($self->get_client_config()){
+        $f->{'client_config'} = $self->get_client_config();
+    }
+
     my ($err,$content) = pull_feed($f);
     return($err) if($err);
     
     my $return;
     try {
         # see if we designate a delimiter
-        if(my $d = $f->{'delimiter'}){
+        if($content =~ /^application\/cif/){
+            require CIF::Smrt::ParseCifFeed;
+            $return = CIF::Smrt::ParseCifFeed::parse($f,$content);
+        } elsif(my $d = $f->{'delimiter'}){
             require CIF::Smrt::ParseDelim;
             $return = CIF::Smrt::ParseDelim::parse($f,$content,$d);
         } else {
@@ -277,7 +324,7 @@ sub parse {
             if($content =~ /^application\/base64\+snappy\+pb\+iodef\n([\S\n]+)\n$/){
                 require CIF::Smrt::ParsePbIodef;
                 $return = CIF::Smrt::ParsePbIodef::parse($f,$content);
-            } elsif($content =~ /<\?xml version=/){
+            } elsif(($f->{'driver'} && $f->{'driver'} eq 'xml') || $content =~ /^(<\?xml version=|<rss version=)/){
                 if($content =~ /<rss version=/ && !$f->{'nodes'}){
                     require CIF::Smrt::ParseRss;
                     $return = CIF::Smrt::ParseRss::parse($f,$content);
@@ -286,11 +333,7 @@ sub parse {
                     $return = CIF::Smrt::ParseXml::parse($f,$content);
                 }
             } elsif($content =~ /^\[?{/){
-                # possible json content or CIF
-                if($content =~ /^{"status"\:/){
-                    require CIF::Smrt::ParseCIF;
-                    $return = CIF::Smrt::ParseCIF::parse($f,$content);
-                } elsif($content =~ /urn:ietf:params:xmls:schema:iodef-1.0/) {
+                if($content =~ /urn:ietf:params:xmls:schema:iodef-1.0/) {
                     require CIF::Smrt::ParseJsonIodef;
                     $return = CIF::Smrt::ParseJsonIodef::parse($f,$content);
                 } else {
@@ -299,6 +342,9 @@ sub parse {
                 }
             ## TODO -- fix this; double check it
             } elsif($content =~ /^#?\s?"\S+","\S+"/ && !$f->{'regex'}){
+                # ParseCSV only works on strictly formated CSV files
+                # o/w you should be using ParseDelim and specifying the "delimiter" field
+                # in your config
                 require CIF::Smrt::ParseCsv;
                 $return = CIF::Smrt::ParseCsv::parse($f,$content);
             } else {
@@ -309,7 +355,21 @@ sub parse {
     } catch {
         $err = shift;
     };
-    return($err) if($err);
+    if($err){
+        my @errmsg;
+        if($err =~ /parser error/){
+            push(@errmsg,'it appears that the format of this feed is broken and might need fixing on the authors end');
+            if($::debug > 1){
+                push(@errmsg,"\n\n".$err);
+            } else {
+                push(@errmsg,'a debug level > 1 will print the error if you wish to investigate');
+            }
+        } else {
+            push(@errmsg,"\n\n".$err);
+        }
+        return(join("\n",@errmsg));
+    }
+
     return(undef,$return);
 }
 
@@ -329,6 +389,43 @@ sub _decode {
     return $data;
 }
 
+sub _sort_timestamp {
+    my $recs    = shift;
+    my $rules   = shift;
+    
+    my $refresh = $rules->{'refresh'} || 0;
+
+    debug('setting up sort...');
+    my $x = 0;
+    my $now = DateTime->from_epoch(epoch => time());
+    ## TODO -- walk throught this again
+    foreach my $rec (@{$recs}){
+        my $dt = $rec->{'detecttime'} || $now;
+        my $rt = $rec->{'reporttime'} || $now;
+
+        $dt = normalize_timestamp($dt,$now);
+
+        if($refresh){
+            $rt = $now;
+            $rec->{'timestamp_epoch'} = $now->epoch();
+        } else {
+            $rt = normalize_timestamp($rt,$now);
+            $rec->{'timestamp_epoch'} = $dt->epoch();
+        }
+       
+        $rec->{'detecttime'}        = $dt->ymd().'T'.$dt->hms().'Z';
+        $rec->{'reporttime'}        = $rt->ymd().'T'.$rt->hms().'Z';
+    }
+    debug('sorting...');
+    if($refresh){
+        $recs = [ sort { $b->{'reporttime'} cmp $a->{'reporttime'} } @$recs ];
+    } else {
+        $recs = [ sort { $b->{'detecttime'} cmp $a->{'detecttime'} } @$recs ];
+    }
+    debug('done...');
+    return($recs);
+}
+
 sub preprocess_routine {
     my $self = shift;
 
@@ -342,7 +439,7 @@ sub preprocess_routine {
     
     if($self->get_goback()){
         debug('sorting '.($#{$recs}+1).' recs...') if($::debug);
-        $recs = _sort_detecttime($recs);
+        $recs = _sort_timestamp($recs,$self->get_rules());
     }
     ## TODO -- move this to the threads?
     ## test with alienvault scan's feed
@@ -370,7 +467,7 @@ sub preprocess_routine {
         }
             
         ## TODO -- if we do this, we need to degrade the count somehow...
-        last if($r->{'reporttime_epoch'} < $self->get_goback());
+        last if($r->{'timestamp_epoch'} < $self->get_goback());
         push(@array,$r);
     }
     debug('done mapping...') if($::debug);
@@ -462,11 +559,11 @@ sub process {
     my $total_recs = $master_count;
     my $sent_recs = 0;
     do {
-        debug('waiting on message...');
+        debug('waiting on message...') if($::debug && $::debug > 1);
         
         debug('polling...') if($::debug > 5);
         $poller->poll();
-        debug('found msg');
+        debug('found msg') if($::debug && $::debug > 1);
         if($poller->has_event('workers_sum')){
             my $msg = $workers_sum->recv()->data();
             for($msg){
@@ -482,22 +579,24 @@ sub process {
         }
         
         ## TODO -- should this be after the return check?
-        debug('master count: '.$master_count);  
+        debug('master count: '.$master_count) if($::debug && $::debug > 1);
         if($master_count == 0){
-            debug('sending total: '.$total_recs);
+            debug('sending total: '.$total_recs) if($::debug && $::debug > 1);
             $ctrl->send('TOTAL:'.$total_recs);
             $ctrl->send('WRK_DONE');
         }
         # waiting for sender
         if($poller->has_event('return')){
-            debug('return msg received');
+            debug('return msg received') if($::debug && $::debug > 1);
             my $msg = $return->recv();
 
             if($msg->data() =~ /^ERROR: /){
+		$err = $msg->data();
                 $sent_recs = -1;
             } else {
-
+		#$msg = MessageType->decode($msg->data());
                 # size of the array returned +1
+		#$sent_recs += ($#{$msg->get_data()} + 1);
                 $sent_recs += $msg->data();
             }
         }
@@ -514,6 +613,8 @@ sub process {
     $ctrl->close();
     $return->close();
     $context->term();
+
+    return $err unless($sent_recs > -1);
     return(undef,1);
 }
 
@@ -579,6 +680,13 @@ sub worker_routine {
             debug('generating iodef...') if($::debug > 3);
 
             my $iodef = Iodef::Pb::Simple->new($msg);
+
+            $iodef = [ $iodef ] unless(ref($iodef) eq 'ARRAY');
+            if($#{$iodef} > 0){
+                debug('ADDING:'.($#{$iodef}));
+                $workers_sum->send('ADDED:'.($#{$iodef}));
+                nanosleep NSECS_PER_MSEC;
+            }
             
             my @results;
             if($self->get_postprocess()) {
@@ -596,13 +704,15 @@ sub worker_routine {
             	
                 foreach my $p (@_pp) {
                     my ($err,$array);
-                    try {
-                        $array = $p->process($self,$iodef);
-                    } catch {
-                        $err = shift;
-                    };
-                    debug($err) if($::debug && $err);
-                    push @results, @$array if ($array && @$array);
+		    foreach my $i (@$iodef){
+                    	try {
+                    	    $array = $p->process($self,$iodef);
+                    	} catch {
+                    	    $err = shift;
+                    	};
+                    	debug($err) if($::debug && $err);
+                    	push @results, @$array if ($array && @$array);
+		    }
                 }
 
                 # we don't do +1 here cause the parent already knows about the
@@ -798,35 +908,6 @@ sub throttle {
     
     return($cores * (DEFAULT_THROTTLE_FACTOR() * 2))  if($throttle eq 'high');
     return($cores * DEFAULT_THROTTLE_FACTOR())  if($throttle eq 'medium');
-}
-
-sub _sort_detecttime {
-    my $recs = shift;
-
-    foreach (@{$recs}){
-        delete($_->{'regex'}) if($_->{'regex'});
-        my $dt = $_->{'reporttime'} || $_->{'detecttime'};
-        if($dt){
-            $dt = normalize_timestamp($dt);
-        }
-        unless($dt){
-            $dt = DateTime->from_epoch(epoch => time());
-            if(lc($_->{'detection'}) eq 'hourly'){
-                $dt = $dt->ymd().'T'.$dt->hour.':00:00Z';
-            } elsif(lc($_->{'detection'}) eq 'monthly') {
-                $dt = $dt->year().'-'.$dt->month().'-01T00:00:00Z';
-            } elsif(lc($_->{'detection'}) ne 'now'){
-                $dt = $dt->ymd().'T00:00:00Z';
-            } else {
-                $dt = $dt->ymd().'T'.$dt->hms();
-            }
-        }
-        $_->{'reporttime'} = $dt;
-        $_->{'description'} = '' unless($_->{'description'});
-    }
-    ## TODO -- can we get around having to create a new array?
-    my @new = sort { $b->{'reporttime'} cmp $a->{'reporttime'} } @$recs;
-    return(\@new);
 }
 
 1;
