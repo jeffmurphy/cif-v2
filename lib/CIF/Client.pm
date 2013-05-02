@@ -15,18 +15,18 @@ use Regexp::Common qw/net/;
 use Regexp::Common::net::CIDR;
 use Net::Patricia;
 use URI::Escape;
-use Digest::SHA1 qw/sha1_hex/;
+use Digest::SHA qw/sha1_hex/;
 use Digest::MD5 qw/md5_hex/;
 use Encode qw(encode_utf8);
 use Data::Dumper;
 
-use CIF qw(generate_uuid_ns debug);
+use CIF qw(generate_uuid_ns is_uuid debug);
 use CIF::Msg;
 use CIF::Msg::Feed;
 
 __PACKAGE__->follow_best_practice();
 __PACKAGE__->mk_accessors(qw(
-    config driver_config driver apikey 
+    config driver_config global_config driver apikey 
     nolog limit guid filter_me no_maprestrictions
     table_nowarning related
 ));
@@ -45,6 +45,7 @@ sub new {
     my $self = {};
     bless($self,$class);
         
+    $self->set_global_config(   $args->{'config'});
     $self->set_config(          $args->{'config'}->param(-block => 'client'));
     $self->set_driver(          $self->get_config->{'driver'} || 'HTTP');
     $self->set_driver_config(   $args->{'config'}->param(-block => 'client_'.lc($self->get_driver())));
@@ -93,6 +94,7 @@ sub search {
     
     my $filter_me   = $args->{'filter_me'} || $self->get_filter_me();
     my $nolog       = (defined($args->{'nolog'})) ? $args->{'nolog'} : $self->get_nolog();
+    my $no_decode   = $args->{'no_decode'};
     
     unless($args->{'apikey'}){
         $args->{'apikey'} = $self->get_apikey();
@@ -157,7 +159,7 @@ sub search {
 sub send {
     my $self = shift;
     my $msg = shift;
-    use Carp qw(cluck);
+
     return $self->get_driver->send($msg);
 }
 

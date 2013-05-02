@@ -23,7 +23,7 @@ our @ISA = qw(Exporter);
 # will save memory.
 our %EXPORT_TAGS = ( 'all' => [ qw(
     is_uuid generate_uuid_random generate_uuid_url generate_uuid_hash 
-    normalize_timestamp generate_uuid_ns debug init_logging
+    normalize_timestamp generate_uuid_ns debug init_logging to_feed
 ) ] );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw//;
@@ -162,17 +162,24 @@ sub generate_uuid_url {
 
 sub normalize_timestamp {
     my $dt = shift;
-    return $dt if($dt =~ /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    my $now = shift || DateTime->from_epoch(epoch => time()); # better perf in loops if we can pass the default now value
+    
+    return DateTime::Format::DateParse->parse_datetime($dt) if($dt =~ /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    
+    # already epoch
+    return DateTime->from_epoch(epoch => $dt) if($dt =~ /^\d{10}$/);
+    
+    # something else
     if($dt && ref($dt) ne 'DateTime'){
         if($dt =~ /^\d+$/){
             if($dt =~ /^\d{8}$/){
                 $dt.= 'T00:00:00Z';
                 $dt = eval { DateTime::Format::DateParse->parse_datetime($dt) };
                 unless($dt){
-                    $dt = DateTime->from_epoch(epoch => time());
+                    $dt = $now;
                 }
             } else {
-                $dt = DateTime->from_epoch(epoch => $dt);
+                $dt = $now;
             }
         } elsif($dt =~ /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\S+)?$/) {
             my ($year,$month,$day,$hour,$min,$sec,$tz) = ($1,$2,$3,$4,$5,$6,$7);
@@ -183,11 +190,46 @@ sub normalize_timestamp {
             return undef unless($dt);
         }
     }
-    $dt = $dt->ymd().'T'.$dt->hms().'Z';
+    #$dt = $dt->ymd().'T'.$dt->hms().'Z';
     return $dt;
 }
 
 =back
 =cut
+
+sub to_feed {
+    my $args = shift;
+    
+    my $data        = $args->{'data'};
+    my $description = $args->{'description'}    || 'unknown';
+    my $confidence  = $args->{'confidence'}     || 0;
+    my $timestamp   = $args->{'timestamp'};
+    my $guid        = $args->{'guid'}           || generate_uuid_ns('everyone');
+    
+    unless($timestamp){
+        $timestamp = DateTime->from_epoch(epoch => time());
+        $timestamp = $timestamp->ymd().'T'.$timestamp->hms().'Z';
+    }
+    
+    my @feed;
+    foreach (@$data){
+        unless(ref($_) eq 'IODEFDocumentType'){
+            $_ = { $_ } unless(ref($_) eq 'HASH');
+            $_ = Iodef::Pb::Simple->new($_);
+        }
+        push(@feed,$_->encode());
+    }
+    
+    my $f = FeedType->new({
+        version         => $VERSION,
+        confidence      => $confidence,
+        description     => $description,
+        ReportTime      => $timestamp,
+        data            => \@feed,
+        uuid            => generate_uuid_random(),
+        guid            => $guid,
+    });
+    return $f->encode();
+}
 
 1;

@@ -3,7 +3,7 @@ package CIF::Client::Query::Feed;
 use strict;
 use warnings;
 
-my $regex = qr/^([a-z\/]+([0-9])?)$/;
+my $regex = qr/^([a-z]+\/[a-z]+([0-9])?)$/;
 
 sub process {
     my $class   = shift;
@@ -34,6 +34,23 @@ sub process {
     };
 
     return(undef,$query);  
+}
+
+
+sub normalize_address {
+     my $addr = shift;
+
+     my @bits = split(/\./,$addr);
+     foreach(@bits){
+         if(/^0+\/(\d+)$/){
+             $_ = '0/'.$1;
+         } else {
+             next if(/^0$/);
+             next unless(/^0{1,2}/);
+             $_ =~ s/^0{1,2}//;
+         }
+     }
+     return join('.',@bits);
 }
 
 1;

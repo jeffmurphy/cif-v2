@@ -8,6 +8,9 @@ use warnings;
 use CIF qw/debug/;
 require LWP::UserAgent;
 use Try::Tiny;
+use JSON::XS;
+
+our $AGENT = 'libcif/'.$CIF::VERSION.' (collectiveintel.org)';
 
 __PACKAGE__->follow_best_practice();
 __PACKAGE__->mk_accessors(qw(config));
@@ -25,20 +28,40 @@ sub new {
     $self->{'max_redirect'}    = $args->{'max_redirect'} || 5;
 
     if(defined($self->get_config->{'verify_tls'}) && $self->get_config->{'verify_tls'} == 0){
+        $self->ssl_opts(SSL_verify_mode => 'SSL_VERIFY_NONE');
         $self->ssl_opts(verify_hostname => 0);
     }
 
     if($self->get_config->{'proxy'}){
-        warn 'setting proxy' if($::debug);
+        debug('setting proxy') if($::debug);
         $self->proxy(['http','https'],$self->get_config->{'proxy'});
     }
     
-    $self->agent('libcif/'.$CIF::VERSION);
+    $self->agent($AGENT);
 
     return($self);
 }
 
 sub send {
+    my $self = shift;
+    my $data = shift;
+    
+    return $self->_send($data);
+}
+
+sub send_json {
+    my $self = shift;
+    my $args = shift;
+    
+    my $apikey  = $args->{'apikey'} || return 'missing apikey';
+    my $data    = $args->{'data'}   || return 'missing data';
+    
+    $self->default_header('Accept' => 'application/json');
+    $self->get_config->{'host'} .= '?apikey='.$apikey;
+    return $self->_send($data);
+}
+
+sub _send {
     my $self = shift;
     my $data = shift;
     return unless($data);
@@ -48,7 +71,7 @@ sub send {
     
     do {
         try {
-            $ret = $self->post($self->get_config->{'host'}.'/',Content => $data);
+            $ret = $self->post($self->get_config->{'host'},Content => $data);
         } catch {
             $err = shift;
         };
@@ -70,6 +93,8 @@ sub send {
             }
         }
     } while(!$ret && ($x++ < 5));
+    ## TODO -- do we turn this into a re-submit?
+    return('ERROR: unknown server failure....') unless($ret);
     return($ret->status_line()) unless($ret->is_success());
     return(undef,$ret->decoded_content());
 }
