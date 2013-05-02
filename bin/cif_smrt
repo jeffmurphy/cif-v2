@@ -41,7 +41,7 @@ use CIF qw/debug/;
 use Sys::MemInfo qw(totalmem);
 
 my %opts;
-getopts('hNA:s:T:t:d:FC:f:r:v:Pp:',\%opts);
+getopts('z:hNA:s:T:t:d:FC:f:r:v:Pp:',\%opts);
 our $debug = $opts{'d'} || 0;
 $debug = $opts{'v'} if($opts{'v'});
 
@@ -55,7 +55,10 @@ my $rules_dir    = '/opt/cif/etc';
 my $throttle    = $opts{'T'} || 'medium';
 my $threads     = $opts{'t'};
 my $admin       = $opts{'A'} || 'root';
-my $fail_open   = $opts{'N'} || 0;
+my $fail_closed = $opts{'N'} || 0;
+my $disable_p   = $opts{'z'};
+
+debug('fail closed: '.$fail_closed) if($debug);
 
 if((&totalmem / (1024*1024*1024)) < 1){
     #print "total memory: ".(&totalmem / (1024*1024*1024))."\n";
@@ -69,17 +72,47 @@ if(!$threads){
     $threads = CIF::Smrt::throttle($throttle);
 }
 
-if($postprocess && $postprocess ne '1'){
-    my @stuff = split(/,/,$postprocess);
-    $postprocess = \@stuff;
-}
-
 # this is for the doc
-foreach (@CIF::Smrt::postprocessors){
+my @p1 = @CIF::Smrt::postprocessors;
+foreach (@p1){
     $_ =~ s/CIF::Smrt::Plugin::Postprocessor:://;
     $_ = lc($_);
 }
-my $pp = join(',',@CIF::Smrt::postprocessors);
+my $pp = join(',',@p1);
+# end doc
+
+if($postprocess){
+    if($postprocess eq 1){
+        $postprocess = join(',',@p1);
+    }
+    my @stuff = split(/,/,$postprocess);
+    # check validity of the pp's
+    foreach (@stuff){
+        my $found = 0;
+        foreach my $p (@p1){
+            next unless(lc($_) eq $p);
+            $found = 1;
+        }
+        unless($found){
+            print 'unknown postprocessor: '.$_."\n";
+            exit(-1);   
+        }
+    }
+    # if we want to disable certain postprocessors
+    if($disable_p){
+        my @tmp;
+        foreach my $d (split(/,/,$disable_p)){
+            foreach my $s (@stuff){
+                next if(lc($s) eq lc($d));
+                push(@tmp,$s);
+            }
+        }
+        @stuff = @tmp;
+    }
+    $postprocess = \@stuff;
+}
+
+# this needs to go after the postprocessor code to fill in the blanks
 
 die usage() if($opts{'h'} || !$rules);
 
@@ -100,20 +133,24 @@ Advanced:
     -p  --post-processors:  only run specific postprocessors ($pp)
                             (default: $postprocess)
                             
+    -z  --disable:          enable all postprocessors, disable a set of specific ones (csv list)
+                            
     -T  --throttle:         throttle (how man threads to use, default: $throttle)
                             low:    threads = number of cores * 0.5
                             medium: threads = number of cores
                             high:   threads = number of cores * 2
 
-    -N  --fail-open:        don't error out if one of the jobs fail, mail the -A admin
-                            (default: $fail_open)
+    -N  --fail-closed:      error out if one of the jobs fail, mail the -A $admin
+                            (1|0 -- default 0)
+                            
     -A  --admin:            designate an admin email address where errors should go if we fail open
                             (default: $admin)
                         
 Examples:
-    \$ $0 -C /home/cif/.cif -r $rules_dir/spyeyetracker.cfg -f binaries -T medium -P
-    \$ $0 -C /home/cif/.cif -r $rules_dir/malwaredomains.cfg -f domains -T high -d -P
-    \$ $0 -C /home/cif/.cif -r $rules_dir/misc.cfg -f spamhaus_drop -d -p ip,malware
+    $0 -C /home/cif/.cif -r $rules_dir/spyeyetracker.cfg -f binaries -T medium -P
+    $0 -C /home/cif/.cif -r $rules_dir/malwaredomains.cfg -f domains -T high -d -P
+    $0 -C /home/cif/.cif -r $rules_dir/misc.cfg -f spamhaus_drop -d -p ip,malware
+    $0 -r $rules_dir/misc.cfg -f spamhaus_drop -d -P -z ip,malware
 EOF
 }
 
@@ -127,7 +164,12 @@ my ($err,$smrt) = CIF::Smrt->new({
     postprocess     => $postprocess,
 });
 
-die(usage()."\n\n".$err) if($err);
+if($err){
+    print(usage()."\n\n");
+    print('!!!ERROR!!!'."\n");
+    print($err."\n\n");
+    exit(-1);
+}
 
 ($err,$ret) = $smrt->process();
 unless($err){
@@ -138,13 +180,17 @@ unless($err){
 print '[cif-smrt] failure: '.$smrt->get_rules()->{'source'}."\n";
 print $err."\n";
 
-if($fail_open){
+if($fail_closed){
     my $msg = MIME::Lite->new(
         To      => $admin,
         Subject => 'cif-smrt failure: '.$smrt->get_rules()->{'source'}.' -- '.$feed,
         Data    => "$err\nfeed: $feed"
     )->send();
-    exit(0);
+    if($err =~ /contact system administrator/){
+        exit(-1);
+    } else {
+        exit(0);
+    }
 } else {
     exit(-1) ;
 }

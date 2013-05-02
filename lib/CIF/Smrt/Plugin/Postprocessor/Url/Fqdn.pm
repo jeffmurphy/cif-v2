@@ -21,7 +21,7 @@ sub process {
     foreach my $i (@{$data->get_Incident()}){
         next unless($i->get_purpose && $i->get_purpose == IncidentType::IncidentPurpose::Incident_purpose_mitigation());
         next unless($i->get_EventData());
-        my $description = $i->get_Description();
+        my $description = @{$i->get_Description()}[0]->get_content();
         my $restriction = $i->get_restriction();
         my $assessment = $i->get_Assessment();
         my $confidence = @{$assessment}[0]->get_Confidence();
@@ -37,6 +37,9 @@ sub process {
                 $guid = $_->get_content();
             }
         }
+        
+        my $rids = $i->get_RelatedActivity();
+        $rids = $rids->get_IncidentID() if($rids);
         
         foreach my $e (@{$i->get_EventData()}){
             $restriction = $e->get_restriction() if($e->get_restriction());
@@ -78,25 +81,31 @@ sub process {
                                 description => $description,
                                 confidence  => $confidence,
                                 RelatedActivity   => RelatedActivityType->new({
-                                    IncidentID  => $i->get_IncidentID(),
+                                    IncidentID  => [ $i->get_IncidentID() ],
                                     restriction => $restriction,
                                 }),
                                 restriction     => $restriction,
                                 guid            => $guid, 
+                                AlternativeID   => $i->get_AlternativeID(),
                             });
                             foreach (@postprocessors){
                                 my $ret = $_->process($smrt,$new);
                                 push(@new_incidents,@$ret) if($ret);
                             }
                             push(@new_incidents,@{$new->get_Incident()});
-                            my $altids = $i->get_RelatedActivity();
-                            push(@$altids, RelatedActivityType->new({IncidentID => $id, restriction => $restriction }));
-                            $i->set_RelatedActivity($altids);
+                            push(@$rids,$id);
                             
                         }
                     }
                 }
             }
+        }
+        if($rids){
+            $i->set_RelatedActivity(
+                RelatedActivityType->new({
+                    IncidentID  => $rids,
+                })
+            );
         }
     }
     return(\@new_incidents);

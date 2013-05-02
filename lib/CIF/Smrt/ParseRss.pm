@@ -8,14 +8,19 @@ sub parse {
     my $f = shift;
     my $content = shift;
     
+    # fix malformed RSS
+    unless($content =~ /^<\?xml version/){
+        $content = '<?xml version="1.0"?>'."\n".$content;
+    }
+    
     my $rss = XML::RSS->new();
-    my @lines = split("\n",$content);
+    my @lines = split(/[\r\n]/,$content);
     # work-around for any < > & that is in the feed as part of a url
     # http://stackoverflow.com/questions/5199463/escaping-in-perl-generated-xml/5899049#5899049
     # needs some work, the parser still pukes.
     foreach(@lines){
-        s/(\S+)<(.*<\/\S+>)$/$1&#x3c;$2/g;
-        s/^(<.*>.*)>(.*<\/\S+>)$/$1&#x3e;$2/g;
+        s/(\S+)<(?!\!\[CDATA)(.*<\/\S+>)$/$1&#x3c;$2/g;
+        s/^(<.*>.*)(?<!\]\])>(.*<\/\S+>)$/$1&#x3e;$2/g;
     }
     $content = join("\n",@lines);
     $rss->parse($content);

@@ -29,9 +29,11 @@ sub process {
         next unless($confidence > 25);
         
         my $restriction = $i->get_restriction();
-        my $description = $i->get_Description->get_content();
+        my $description = @{$i->get_Description()}[0]->get_content();
         
         my $altids = $i->get_RelatedActivity();
+        $altids = $altids->get_IncidentID() if($altids);
+        
         my $bgp = iodef_bgp($i) || next();
         foreach (@$bgp){
             next unless($_->{'prefix'});
@@ -42,28 +44,35 @@ sub process {
                 restriction => $restriction,
             });
             my $new = Iodef::Pb::Simple->new({
-                address     => $_->{'prefix'},
-                prefix      => $_->{'prefix'},
-                cc          => $_->{'cc'},
-                rir         => $_->{'rir'},
-                asn         => $_->{'asn'},
-                asn_desc    => $_->{'asn_desc'},
-                IncidentID  => $new_id,
-                assessment  => 'whitelist',
-                description => $description.' prefix',
-                confidence  => $confidence,
+                address         => $_->{'prefix'},
+                prefix          => $_->{'prefix'},
+                cc              => $_->{'cc'},
+                rir             => $_->{'rir'},
+                asn             => $_->{'asn'},
+                asn_desc        => $_->{'asn_desc'},
+                IncidentID      => $new_id,
+                assessment      => 'whitelist',
+                description     => $description.' prefix',
+                confidence      => $confidence,
                 restriction     => $restriction,
                 RelatedActivity => RelatedActivityType->new({
-                        IncidentID  => $i->get_IncidentID(),
+                        IncidentID  => [ $i->get_IncidentID() ],
                         restrcition => $restriction,
                 }),
                 guid            => iodef_guid($i),
+                AlternativeID   => $i->get_AlternativeID(),
                 
             });
             push(@new_ids,@{$new->get_Incident()}[0]);
-            push(@$altids, RelatedActivityType->new({IncidentID => $new_id }));
+            push(@$altids, $new_id);
         }
-        $i->set_RelatedActivity($altids) if($altids);
+        if($altids){
+            $i->set_RelatedActivity(
+                RelatedActivityType->new({
+                    IncidentID  => $altids,
+                })
+            );
+        }
     }
     return(\@new_ids);
 }

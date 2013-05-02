@@ -7,7 +7,9 @@ sub parse {
     my $f = shift;
     my $content = shift;
     
-    my @lines = split(/\n/,$content);
+    return unless($f->{'regex'});
+    
+    my @lines = split(/[\r\n]/,$content);
     my @array;
     foreach(@lines){
         next if(/^(#|<|$)/);
