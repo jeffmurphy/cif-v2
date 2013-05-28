@@ -37,6 +37,7 @@ use CIF qw/debug/;
 
 ## TODO -- generate CIF::Format to wrap this
 use Iodef::Pb::Format;
+use Iodef::Pb::Simple;
 
 #my %opts;
 #getopt('D:S:O:G:l:g:THL:p:f:q:c:s:r:C:zP:F', \%opts);
@@ -72,6 +73,9 @@ my $table_showmeta      = 0;
 my $filter_me           = 0;
 my $sortby              = 'detecttime';
 my $sortby_direction    = 'DESC';
+my $exclude_assessment  = "";
+my $csv_noheader        = 0;
+my $new_only            = 0;
 
 my $help = 0;
 
@@ -98,7 +102,10 @@ my $gor = GetOptions(
 	"tableshowmeta|M"     => \$table_showmeta,
 	"filterme|F"          => \$filter_me,
 	"sortby|S=s"          => \$sortby,
-	"sortbydirection|D=s" => \$sortby_direction 
+	"sortbydirection|D=s" => \$sortby_direction,
+	"exclude|e=s"         => \$exclude_assessment,
+	"csvnoheader|x"       => \$csv_noheader,
+	"newonly|m"           => \$new_only
 	);
 	
 
@@ -125,16 +132,20 @@ Query Options:
     -c   --confidence:       lowest tolerated confidence (0.00 -- 100.00), default $confidence
     
 Format Options:
-    -p   --plugin:           output plugin ('Table','Snort','Csv'), default: Table
+    -p   --plugin:           output plugin ('Table','Snort','Csv','Json','Html'), default: Table
     -f   --fields:           set default output fields for default table display
     -S   --summary:          consolidated Text::Table output (default: True)
     -N   --nomap:            don't map restrictions
     -g   --guid:             filter by a specific group id (guid), ex: group1.example.com
     -G   --groupmap:         turn group mapping (guid to 'group name') on/off, default: $group_map
-    
+    -e   --exclude:          exclude a specific assessment (search,botnet,malware, etc).
+    -x   --csv-noheader:     don't display the header when using the csv plugin
+        
 Nonstandard Options:
     -z                       compact address field to 32 chars, applies only to defalt table output, default: 1 (0 turns it off)
-    -I   --roundconfidence:  round (down) confidence to the nearest integer
+    -I   --roundconfidence:  round (down) confidence to the nearest integer, default 0.
+    -m                      return only the results where "\$DETECTTIME >= \$TODAY (UTC)" (the most recent results from a feed)
+    
 
 Example Queries:
 
@@ -147,7 +158,7 @@ Example Queries:
     
     \$> perl $0 -q malware
     \$> perl $0 -q malware
-    \$> perl $0 -q infrastructure/network -p Snort
+    \$> perl $0 -q infrastructure/botnet -p Snort
     \$> perl $0 -q domain/malware -p bindzone -c 95
     \$> perl $0 -q domain -c 40
     
@@ -202,6 +213,18 @@ Plugin Specific Configurations:
         snort_startsid = 10000000
 
 EOF
+}
+
+if(lc($plugin) eq 'raw'){
+    print usage();
+    print 'Raw plugin has been re-purposed, please use \'-p json\' instead'."\n";
+    exit(0);
+}
+
+if($exclude_assessment && $exclude_assessment =~ /\,/){
+    print usage();
+    print '-e only accepts a single assessment at this time'."\n";
+    exit(0);
 }
 
 my ($err,$cli) = CIF::Client->new({
@@ -273,6 +296,13 @@ foreach my $response (@$responses){
         table_showmeta      => $table_showmeta,
         sortby              => $sortby,
         sortby_direction    => $sortby_direction,
+        
+        limit               => $query_limit,
+        round_confidence    => $round_confidence,
+        csv_noheader        => $csv_noheader,
+        
+        exclude_assessment  => $exclude_assessment,
+        new_only            => $new_only,
     }) 	if ($#iodef > -1);
     
 

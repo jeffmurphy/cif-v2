@@ -15,7 +15,6 @@ use Regexp::Common qw/net/;
 use Regexp::Common::net::CIDR;
 use Net::Patricia;
 use URI::Escape;
-use Digest::SHA qw/sha1_hex/;
 use Digest::MD5 qw/md5_hex/;
 use Encode qw(encode_utf8);
 use Data::Dumper;
