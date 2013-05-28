@@ -704,15 +704,15 @@ sub worker_routine {
             	
                 foreach my $p (@_pp) {
                     my ($err,$array);
-		    foreach my $i (@$iodef){
-                    	try {
-                    	    $array = $p->process($self,$iodef);
-                    	} catch {
-                    	    $err = shift;
-                    	};
-                    	debug($err) if($::debug && $err);
-                    	push @results, @$array if ($array && @$array);
-		    }
+				    foreach my $i (@$iodef){
+		                    	try {
+		                    	    $array = $p->process($self,$iodef);
+		                    	} catch {
+		                    	    $err = shift;
+		                    	};
+		                    	debug($err) if($::debug && $err);
+		                    	push @results, @$array if ($array && @$array);
+				    }
                 }
 
                 # we don't do +1 here cause the parent already knows about the
@@ -728,10 +728,17 @@ sub worker_routine {
                     nanosleep NSECS_PER_MSEC;
                 }
             }
-#            print Dumper($iodef) . "\n";            
+            #print "IODEF ", Dumper($iodef) . "\n";            
             # pass base64 bc send_as converts to utf8 which throws off PB decoding later on
-            push(@results, encode_base64($iodef->encode()));
-
+            
+            if (ref($iodef) eq "ARRAY") {
+            	for my $i (@$iodef) {
+            		push @results, encode_base64($i->encode());
+            	}	
+            } else {
+            	push(@results, encode_base64($iodef->encode()));
+            }
+            
             debug('sending message...') if($::debug > 3);
 
             $sender->send_as('json' => \@results);
