@@ -297,7 +297,7 @@ foreach my $response (@$responses){
         sortby              => $sortby,
         sortby_direction    => $sortby_direction,
         
-        limit               => $query_limit,
+        limit               => $limit,
         round_confidence    => $round_confidence,
         csv_noheader        => $csv_noheader,
         
