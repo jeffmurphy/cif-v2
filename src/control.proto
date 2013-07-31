@@ -136,23 +136,25 @@ message ControlType {
     	RESUME      = 9;
     	RESTART     = 10;
     	
-    	APIKEY_ADD     = 11;
-    	APIKEY_UPDATE  = 12;
-    	APIKEY_DEL     = 13;
-    	APIKEY_LIST    = 14;
-    	APIKEY_GET     = 15;
+    	APIKEY_ADD     = 101;
+    	APIKEY_UPDATE  = 102;
+    	APIKEY_DEL     = 103;
+    	APIKEY_LIST    = 104;
+    	APIKEY_GET     = 105;
     	
-    	APIKEY_GROUPS_ADD    = 16;
-    	APIKEY_GROUPS_UPDATE = 17;
-    	APIKEY_GROUPS_DEL    = 18;
-    	APIKEY_GROUPS_LIST   = 19;
-    	APIKEY_GROUPS_GET    = 20;
+    	APIKEY_GROUPS_ADD    = 106;
+    	APIKEY_GROUPS_UPDATE = 107;
+    	APIKEY_GROUPS_DEL    = 108;
+    	APIKEY_GROUPS_LIST   = 109;
+    	APIKEY_GROUPS_GET    = 110;
     	
-    	CIF_QUERY_REQUEST    = 21;
-    	CIF_QUERY_RESPONSE   = 22;
+    	CIF_QUERY_REQUEST    = 201;
+    	CIF_QUERY_RESPONSE   = 202;
+    	
+    	THREADS_LIST         = 300;
     }
     
-    optional double version      = 1 [default = 20130324.00];
+    optional double version      = 1 [default = 20130731.00];
     optional bytes seq           = 2; // used to match commands to replies, must be preserved in replies 
     optional string dst          = 3;
     optional string src          = 4;
