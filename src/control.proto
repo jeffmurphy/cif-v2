@@ -67,6 +67,16 @@ message PingRequest {
 	optional int32  pingseq = 2;
 }
 
+message ListThreadsResponse {
+	repeated string id = 1;
+	repeated string user = 2;
+	repeated string host = 3;
+	repeated string command = 4;
+	repeated int32 runtime = 5; 
+	repeated string state = 6; 
+	repeated string info = 7;
+}
+
 // supported ("indexed") requests are:
 //   by-apikey
 //   by-alias
@@ -173,6 +183,7 @@ message ControlType {
     repeated APIKeyResponse      apiKeyResponseList  = 15;
     optional QueryRequestList    queryRequestList    = 16;
     repeated QueryResponse       queryResponseList   = 17;
+    optional ListThreadsResponse listThreadsResponse = 18;
 }
 
 
