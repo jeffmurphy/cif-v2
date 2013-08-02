@@ -59,8 +59,8 @@ class ThreadTracker:
     
     def user(self, _id):
         self.lock.acquire()
-        rv = "NA"
-        if 'user' in self.track[_id]:
+        rv = ""
+        if 'user' in self.track[_id] and self.track[_id]['user'] != None:
             rv = self.track[_id]['user']
         self.lock.release()
         return rv
@@ -68,39 +68,39 @@ class ThreadTracker:
     def runtime(self, _id):
         self.lock.acquire()
         rv = 0
-        if 'time' in self.track[_id]:
+        if 'time' in self.track[_id] and self.track[_id]['time'] != None:
             rv = int(time.time() - self.track[_id]['time'])
         self.lock.release()
         return rv    
     
     def host(self, _id):
         self.lock.acquire()
-        rv = "NA"
-        if 'host' in self.track[_id]:
+        rv = ""
+        if 'host' in self.track[_id] and self.track[_id]['host'] != None:
             rv = self.track[_id]['host']
         self.lock.release()
         return rv
     
     def command(self, _id):
         self.lock.acquire()
-        rv = "NA"
-        if 'command' in self.track[_id]:
+        rv = ""
+        if 'command' in self.track[_id] and self.track[_id]['command'] != None:
             rv = self.track[_id]['command']
         self.lock.release()
         return rv
     
     def state(self, _id):
         self.lock.acquire()
-        rv = "NA"
-        if 'state' in self.track[_id]:
+        rv = ""
+        if 'state' in self.track[_id] and self.track[_id]['state'] != None:
             rv = self.track[_id]['state']
         self.lock.release()
         return rv
     
     def info(self, _id):
         self.lock.acquire()
-        rv = "NA"
-        if 'info' in self.track[_id]:
+        rv = ""
+        if 'info' in self.track[_id] and self.track[_id]['info'] != None:
             rv = self.track[_id]['info']
         self.lock.release()
         return rv
@@ -120,7 +120,7 @@ class ThreadTracker:
         
         return msg
     
-    def asmessage(self):
+    def asmessage(self, ltr):
         """
         Return the threads list as a Control message
         message ListThreadsResponse {
@@ -134,16 +134,17 @@ class ThreadTracker:
         }
 
         """
-        m = control_pb2.ListThreadsResponse()
+        #m = control_pb2.ListThreadsResponse()
+        m = ltr
         for k in self.track.keys():
-            m.id.extend([k])
-            m.user.extend([self.track[k][user]])
-            m.host.extend([self.track[k][host]])
-            m.command.extend([self.track[k][command]])
-            m.state.extend([self.track[k][state]])
-            m.info.extend([self.track[k][info]])
+            m.id.extend([str(k)])
+            m.user.extend([self.user(k)])
+            m.host.extend([self.host(k)])
+            m.command.extend([self.command(k)])
+            m.state.extend([self.state(k)])
+            m.info.extend([self.info(k)])
 
-            m.runtime.extend([int(time.time() - self.track[k][time])])
+            m.runtime.extend([int(time.time() - self.track[k]['time'])])
         return m
     
     def __str__(self):
