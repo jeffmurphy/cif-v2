@@ -31,6 +31,8 @@ class Foundation(object):
         self.apikey = self.param('apikey')
         self.myip = self.param('myip')
         
+        self.thread_tracker = self.param('thread_tracker')
+        
         self.cifrouter = self.param('cifrouter')
         x = self.cifrouter.split(':')
         self.router_hname = x[0]
@@ -104,6 +106,10 @@ class Foundation(object):
         self.evthread = threading.Thread(target=self.eventloop, name="Foundation Ctrlsocket Eventloop daemon", args=())
         self.evthread.daemon = True
         self.evthread.start()
+        if not self.evthread.isAlive():
+            print "waiting for evthread thread to become alive"
+            time.sleep(1)
+        self.thread_tracker.add(id=self.evthread.ident, user='Foundation', host='localhost', state='Running', info="Foundation Event Handler")
         
         return self.req
     
