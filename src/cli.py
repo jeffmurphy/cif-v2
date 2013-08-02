@@ -47,6 +47,7 @@ import cifsupport
 sys.path.append('../../libcif/lib')
 from CIF.CtrlCommands.Clients import *
 from CIF.CtrlCommands.Ping import *
+from CIF.CtrlCommands.ThreadTracker import ThreadTracker
 
 from CIF.Foundation import Foundation
 
@@ -58,6 +59,15 @@ def usage():
     #     -m  my name\n"
 
 
+def listThreads(myid, apikey):
+    cf.sendmsg(ThreadTracker.makecontrolmsg(myid, 'cif-db', apikey), listThreadsFinished)
+
+def listThreadsFinished(msg):
+    if msg.status & control_pb2.ControlType.SUCCESS == control_pb2.ControlType.SUCCESS:
+        print msg
+    else:
+        print "\t\tlist threads failed. " + msg.status
+        
 def listClients(myid, apikey):
     cf.sendmsg(Clients.makecontrolmsg(myid, 'cif-router', apikey), listClientsFinished)
 
@@ -134,13 +144,16 @@ for o, a in opts:
 myip = socket.gethostbyname(socket.gethostname()) # has caveats
 
 global cf
+global thread_tracker
+thread_tracker = ThreadTracker(False)
 
 cf = Foundation({'apikey': apikey, 
                  'myip': myip, 
                  'cifrouter': cifrouter,
                  'controlport': controlport,
                  'routerid': "cif-router",
-                 'myid': myid})
+                 'myid': myid,
+                 'thread_tracker': thread_tracker})
 
 cf.setdebug(debug)
 
@@ -173,6 +186,9 @@ try:
                 
             elif parts[0] == "clients":
                 listClients(myid, apikey)
+            
+            elif parts[0] == "threads":
+                listThreads(myid, apikey)
                 
             elif parts[0] == "ping":
                 num = 1
