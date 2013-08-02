@@ -56,6 +56,7 @@ sys.path.append('../../libcif/lib')
 from CIF.RouterStats import *
 from CIF.CtrlCommands.Clients import *
 from CIFRouter.MiniClient import *
+from CIF.CtrlCommands.ThreadTracker import ThreadTracker
 
 myname = "cif-router"
 
@@ -216,6 +217,7 @@ except getopt.GetoptError, err:
 
 global mystats
 global clients
+global thread_tracker
 
 context = zmq.Context()
 clients = Clients()
@@ -267,6 +269,12 @@ xsub.setsockopt(zmq.SUBSCRIBE, '')
 print "Connect XSUB<->XPUB"
 thread = threading.Thread(target=myrelay, args=(publisherport,))
 thread.start()
+if not thread.isAlive():
+    print "waiting for pubsub relay thread to become alive"
+    time.sleep(1)
+thread_tracker = ThreadTracker(False)
+thread_tracker.add(id=thread.ident, user='Router', host='localhost', state='Running', info="PUBSUB Relay")
+
 
 print "Entering event loop"
 
@@ -354,7 +362,7 @@ try:
                                           open_for_business = True
                                           print " DB has connected successfully. Sending reply to DB."
                                           print "Starting embedded client"
-                                          miniclient = MiniClient(apikey, "127.0.0.1", "127.0.0.1:" + str(routerport), 5557, miniclient_id, 1)
+                                          miniclient = MiniClient(apikey, "127.0.0.1", "127.0.0.1:" + str(routerport), 5557, miniclient_id, thread_tracker, True)
                                           socket.send_multipart([from_zmqid, '', msg.SerializeToString()])
 
                                       elif open_for_business == True:

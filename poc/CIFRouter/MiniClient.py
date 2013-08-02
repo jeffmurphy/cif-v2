@@ -29,14 +29,18 @@ agents as well as receive replies.
 """
 
 class MiniClient(object):
-    def __init__ (self, apikey, myip, cifrouter, controlport, myid, debug):
+    def __init__ (self, apikey, myip, cifrouter, controlport, myid, thread_tracker, debug):
         self._lock = threading.RLock()
+        self.thread_tracker = thread_tracker
+        
         self.cf = Foundation({'apikey': apikey, 
 		                 'myip': myip, 
 		                 'cifrouter': cifrouter,
 		                 'controlport': controlport,
 		                 'routerid': "cif-router",
-		                 'myid': myid})
+		                 'myid': myid,
+                         'thread_tracker': self.thread_tracker})
+        
         self.cf.setdebug(debug)
         self.debug = debug
         self.work_queue = deque()
