@@ -59,6 +59,10 @@ class MiniClient(object):
         self.t = threading.Thread(target=self.run, args=())
         self.t.daemon = True
         self.t.start()
+        while not self.t.isAlive():
+            print "waiting for pubsub relay thread to become alive"
+            time.sleep(1)
+        self.thread_tracker.add(id=self.t.ident, user='Router', host='localhost', state='Running', info="Miniclient")
         
     def run(self):
         if self.debug == 1:

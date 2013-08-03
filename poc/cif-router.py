@@ -269,7 +269,7 @@ xsub.setsockopt(zmq.SUBSCRIBE, '')
 print "Connect XSUB<->XPUB"
 thread = threading.Thread(target=myrelay, args=(publisherport,))
 thread.start()
-if not thread.isAlive():
+while not thread.isAlive():
     print "waiting for pubsub relay thread to become alive"
     time.sleep(1)
 thread_tracker = ThreadTracker(False)
@@ -318,6 +318,7 @@ try:
                         msgfrom = msg.src
                         msgto = msg.dst
                         msgcommand = msg.command
+                        msgcommandtext = control_pb2._CONTROLTYPE_COMMANDTYPE.values_by_number[msg.command].name
                         msgid = msg.seq
                         
                         if msgfrom != '' and msg.apikey != '':
@@ -327,7 +328,7 @@ try:
                                     print "Received a REPLY for an APIKEY_GET"
                                         
                             elif msgto == myname and msg.type == control_pb2.ControlType.COMMAND:
-                                print "COMMAND for me: ", msgcommand
+                                print "COMMAND for me: ", msgcommandtext
                                 
                                 mystats.setcontrols(1, msgcommand)
                                 
@@ -413,7 +414,15 @@ try:
                                              msg.listClientsResponse.connectTimestamp.extend(rv.connectTimestamp)
                                          
                                          socket.send_multipart( [ from_zmqid, '', msg.SerializeToString() ] )
-                                     
+                                elif msg.command == control_pb2.ControlType.THREADS_LIST:
+                                    tmp = msg.dst
+                                    msg.dst = msg.src
+                                    msg.src = tmp
+                                    msg.status = control_pb2.ControlType.SUCCESS
+                                    thread_tracker.asmessage(msg.listThreadsResponse)
+                                    socket.send_multipart( [ from_zmqid, '', msg.SerializeToString() ] )
+
+            
                                 elif msgcommand == control_pb2.ControlType.IPUBLISH:
                                      print "IPUBLISH from: " + msgfrom
                                      if open_for_business == True:
@@ -421,7 +430,7 @@ try:
                                          msg.status = rv
                                          socket.send_multipart( [from_zmqid, '', msg.SerializeToString()] )
                             else:
-                                print "COMMAND for someone else: cmd=", msgcommand, "src=", msgfrom, " dst=", msgto
+                                print "COMMAND for someone else: cmd=", msgcommandtext, "src=", msgfrom, " dst=", msgto
                                 msgto_zmqid = clients.getzmqidentity(msgto)
                                 if msgto_zmqid != None:
                                     socket.send_multipart([msgto_zmqid, '', msg.SerializeToString()])
