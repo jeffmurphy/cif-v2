@@ -106,7 +106,7 @@ class Foundation(object):
         self.evthread = threading.Thread(target=self.eventloop, name="Foundation Ctrlsocket Eventloop daemon", args=())
         self.evthread.daemon = True
         self.evthread.start()
-        if not self.evthread.isAlive():
+        while not self.evthread.isAlive():
             print "waiting for evthread thread to become alive"
             time.sleep(1)
         self.thread_tracker.add(id=self.evthread.ident, user='Foundation', host='localhost', state='Running', info="Foundation Event Handler")
