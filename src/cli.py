@@ -35,6 +35,7 @@ import json
 import getopt
 import socket
 import fileinput
+from texttable import Texttable
 
 sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
 import msg_pb2
@@ -59,12 +60,29 @@ def usage():
     #     -m  my name\n"
 
 
-def listThreads(myid, apikey):
-    cf.sendmsg(ThreadTracker.makecontrolmsg(myid, 'cif-db', apikey), listThreadsFinished)
+def listThreads(myid, apikey, dst):
+    cf.sendmsg(ThreadTracker.makecontrolmsg(myid, dst, apikey), listThreadsFinished)
 
 def listThreadsFinished(msg):
-    if msg.status & control_pb2.ControlType.SUCCESS == control_pb2.ControlType.SUCCESS:
+    
+    if debug > 2:
         print msg
+            
+    if msg.status & control_pb2.ControlType.SUCCESS == control_pb2.ControlType.SUCCESS:
+        table = Texttable(max_width=160)
+        table.set_cols_dtype(['i', 't', 't', 't', 'i', 't', 't'])
+        table.set_cols_width([16, 10, 20, 10, 8, 8, 30])
+        table.add_row(["ID", "User", "Host", "Command", "Runtime", "State", "Info"])
+        for i in range(0, len(msg.listThreadsResponse.id)):
+            table.add_row([msg.listThreadsResponse.id[i], 
+                           msg.listThreadsResponse.user[i],
+                           msg.listThreadsResponse.host[i],
+                           msg.listThreadsResponse.command[i],
+                           msg.listThreadsResponse.runtime[i],
+                           msg.listThreadsResponse.state[i],
+                           msg.listThreadsResponse.info[i]
+                           ])
+        print table.draw() + "\n"
     else:
         print "\t\tlist threads failed. " + msg.status
         
@@ -74,16 +92,19 @@ def listClients(myid, apikey):
 def listClientsFinished(msg):
     #print "\tReply contains ", str(len(msg.listClientsResponse.client)), " entries."
     #print "\tReply contains ", str(len(msg.listClientsResponse.connectTimestamp)), " entries."
-
+    
+    if debug > 2:
+        print msg
+            
     if msg.status & control_pb2.ControlType.SUCCESS == control_pb2.ControlType.SUCCESS:
+
         print "%20s %s" % ("Client", "Connected At")
 
         for i in range(0, len(msg.listClientsResponse.client)):
             cts = time.ctime(int(msg.listClientsResponse.connectTimestamp[i]))
             print "%20s %s" % (msg.listClientsResponse.client[i], cts)
     else:
-        if debug > 2:
-            print "\t\tlist clients failed. " + msg.status
+        print "\t\tlist clients failed. " + msg.status
 
 def ping(myid, apikey, dst, num):
     more = True
@@ -182,19 +203,28 @@ try:
                 help()
             
             elif parts[0] == "debug":
-                debug = int(parts[1])
+                if len(parts) < 2:
+                    print "usage: debug [0-9]"
+                else:
+                    debug = int(parts[1])
                 
             elif parts[0] == "clients":
                 listClients(myid, apikey)
             
             elif parts[0] == "threads":
-                listThreads(myid, apikey)
+                if len(parts) < 2:
+                    print "usage: threads [target]\nuse 'clients' for available targets."
+                else:
+                    listThreads(myid, apikey, parts[1])
                 
             elif parts[0] == "ping":
                 num = 1
-                if len(parts) == 3:
-                    num = int(parts[2])
-                ping(myid, apikey, parts[1], num)
+                if len(parts) < 2 or len(parts) > 3:
+                    print "usage: ping [dest] <number of pings>"
+                else:
+                    if len(parts) == 3:
+                        num = int(parts[2])
+                    ping(myid, apikey, parts[1], num)
                 
             else:
                 help()
