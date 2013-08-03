@@ -299,12 +299,12 @@ class Foundation(object):
                         # these threads should be short lived
                         
                         cbthread = threading.Thread(target = self.callback_registry[msgid], name="callback:" + str(control_command), args=(decoded_msg,))
-                        cbthread.start()
+                        cbthread.start() # thread_tracking is done in the thread itself, not here
                         del self.callback_registry[msgid]
                     else:
                         if self.defaultcallback != None:
                             dcbthread = threading.Thread(target = self.defaultcallback, name="defaultcallback:" + str(control_command), args=(decoded_msg,))
-                            dcbthread.start()
+                            dcbthread.start() # thread_tracking is done in the thread itself, not here
                         else:
                             if self.debug > 2:
                                 print ti + "] eventloop: Reply is bad (unexpected, no callback available). Discarding."
