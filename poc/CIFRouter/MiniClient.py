@@ -96,6 +96,7 @@ class MiniClient(object):
                 break
                 
         self.condition.release()
+        self.thread_tracker.remove(self.t.ident)
 
     def pending(self):
         self.pending_apikey_replies_lock.acquire()
