@@ -71,7 +71,7 @@ def listThreadsFinished(msg):
     if msg.status & control_pb2.ControlType.SUCCESS == control_pb2.ControlType.SUCCESS:
         table = Texttable(max_width=160)
         table.set_cols_dtype(['i', 't', 't', 't', 'i', 't', 't'])
-        table.set_cols_width([16, 10, 20, 10, 8, 8, 30])
+        table.set_cols_width([16, 10, 20, 20, 8, 8, 30])
         table.add_row(["ID", "User", "Host", "Command", "Runtime", "State", "Info"])
         for i in range(0, len(msg.listThreadsResponse.id)):
             table.add_row([msg.listThreadsResponse.id[i], 
