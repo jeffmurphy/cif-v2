@@ -148,7 +148,7 @@ sub search {
     $ret = CIF::Msg::ControlType->decode($ret);
  
     unless($ret->get_status() == CIF::Msg::ControlType::StatusType::SUCCESS()){
-        return('failed: '.@{$ret->get_data()}[0]) if($ret->get_status() == CIF::Msg::ControlType::StatusType::FAILED());
+        return('failed: '.$ret->get_statusMsg()) if($ret->get_status() == CIF::Msg::ControlType::StatusType::FAILED());
         return('unauthorized') if($ret->get_status() == CIF::Msg::ControlType::StatusType::UNAUTHORIZED());
     }
     
