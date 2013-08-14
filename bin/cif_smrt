@@ -41,7 +41,7 @@ use CIF qw/debug/;
 use Sys::MemInfo qw(totalmem);
 
 my %opts;
-getopts('z:hNA:s:T:t:d:FC:f:r:v:Pp:',\%opts);
+getopts('z:hNA:s:T:t:d:FC:f:r:v:Pp:R:',\%opts);
 our $debug = $opts{'d'} || 0;
 $debug = $opts{'v'} if($opts{'v'});
 
@@ -51,7 +51,7 @@ my $feed        = $opts{'f'};
 my $load_full   = $opts{'F'};
 my $postprocess = $opts{'P'} || $opts{'p'} || 0;
 
-my $rules_dir    = '/opt/cif/etc';
+my $rules_dir    = $opts{'R'} || '/opt/cif/etc';
 my $throttle    = $opts{'T'} || 'medium';
 my $threads     = $opts{'t'};
 my $admin       = $opts{'A'} || 'root';
