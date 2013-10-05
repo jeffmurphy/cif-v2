@@ -5,6 +5,7 @@ import threading
 import zmq
 import sys
 import hashlib
+import socket
 
 sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
 import msg_pb2
@@ -109,7 +110,7 @@ class Foundation(object):
         while not self.evthread.isAlive():
             print "waiting for evthread thread to become alive"
             time.sleep(1)
-        self.thread_tracker.add(id=self.evthread.ident, user='Foundation', host='localhost', state='Running', info="Foundation Event Handler")
+        self.thread_tracker.add(id=self.evthread.ident, user='Foundation', host=socket.gethostname(), state='Running', info="Foundation Event Handler")
         
         return self.req
     
