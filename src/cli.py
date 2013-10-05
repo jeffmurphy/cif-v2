@@ -129,7 +129,7 @@ def pingFinished(msg):
         print "Got a reply back to my ping, but it doesn't look right: ", msg
 
 def help():
-    print "commands: clients, debug #, ping <dst> [qty=1], help, exit"
+    print "commands: clients, debug #, ping <dst> [qty=1], threads <dst>, help, exit"
 
 global debug
 debug = 2
