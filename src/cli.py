@@ -52,6 +52,8 @@ from CIF.CtrlCommands.ThreadTracker import ThreadTracker
 
 from CIF.Foundation import Foundation
 
+from CIF.RouterStats import *
+
 def usage():
     print "\
     # cli.py [-c 5657] [-r cif-router:5555] [-m name] [-a apikey] [-D 0-9]\n\
@@ -64,7 +66,6 @@ def listThreads(myid, apikey, dst):
     cf.sendmsg(ThreadTracker.makecontrolmsg(myid, dst, apikey), listThreadsFinished)
 
 def listThreadsFinished(msg):
-    
     if debug > 2:
         print msg
             
@@ -106,6 +107,12 @@ def listClientsFinished(msg):
     else:
         print "\t\tlist clients failed. " + msg.status
 
+def stats(myid, apikey, dst='cif-router'):
+    cf.sendmsg(RouterStats.makecontrolmsg(myid, dst, apikey), statsFinished)
+
+def statsFinished(msg):
+    print "stats finished ", msg
+    
 def ping(myid, apikey, dst, num):
     more = True
     ps = 1
@@ -216,6 +223,9 @@ try:
                     print "usage: threads [target]\nuse 'clients' for available targets."
                 else:
                     listThreads(myid, apikey, parts[1])
+            
+            elif parts[0] == "stats":
+                stats(myid, apikey)
                 
             elif parts[0] == "ping":
                 num = 1
