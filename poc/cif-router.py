@@ -197,7 +197,7 @@ def myrelay(pubport):
                     mystats.setrelayed(1, bmt.baseObjectType)
                     
     
-            print "[myrelay] " + str(relaycount) + " recvd(" + str(len(m)) + " bytes)"
+            print "[myrelay] total:%d got:%d bytes" % (relaycount, len(m)) 
             #print "[myrelay] got msg on our xsub socket: " , m
             xpub.send(m)
 
@@ -416,6 +416,20 @@ try:
                                              msg.listClientsResponse.connectTimestamp.extend(rv.connectTimestamp)
                                          
                                          socket.send_multipart( [ from_zmqid, '', msg.SerializeToString() ] )
+                                
+                                elif msg.command == control_pb2.ControlType.STATS:
+                                    print "STATS for: " + msgfrom
+                                    
+                                    if open_for_business == True:
+                                        tmp = msg.dst
+                                        msg.dst = msg.src
+                                        msg.src = tmp
+                                        msg.status = control_pb2.ControlType.SUCCESS
+                                        msg.statsResponse.statsType = control_pb2.StatsResponse.ROUTER
+                                        msg.statsResponse.stats = mystats.asjson()
+                                        
+                                        socket.send_multipart( [ from_zmqid, '', msg.SerializeToString() ] )
+                                    
                                 elif msg.command == control_pb2.ControlType.THREADS_LIST:
                                     tmp = msg.dst
                                     msg.dst = msg.src
