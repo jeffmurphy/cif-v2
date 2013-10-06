@@ -2,6 +2,11 @@ import datetime
 import time
 import os
 import threading
+import json
+import msg_pb2
+import control_pb2
+import cifsupport
+import hashlib
 
 """
 For proof-of-concept code, this is ok, but for production needs to be reconsidered.
@@ -21,7 +26,39 @@ class RouterStats(object):
         self._relayed_total = 0
         self._lock = threading.RLock()
     
-            
+    @classmethod
+    def makecontrolmsg(cls, src, dst, apikey):
+        msg = control_pb2.ControlType()
+        msg.version = msg.version # required
+        msg.type = control_pb2.ControlType.COMMAND
+        msg.command = control_pb2.ControlType.STATS
+        msg.dst = dst
+        msg.src = src
+        msg.apikey = apikey
+        _md5 = hashlib.md5()
+        _md5.update(msg.SerializeToString())
+        msg.seq = _md5.digest()
+        
+        return msg
+    
+    def asmessage(self):
+        """
+        Return the stats as a Control message
+        """
+        m = control_pb2.StatsResponse()
+        m.statsType = control_pb2.ControlType.ROUTER
+        m.stats = self.asjson()
+        return m
+    
+    def asjson(self):
+        return json.dumps({'uptime':     self.getuptime(),
+                           'relayed':    self._relayed_total,
+                           'controls':   self._controls_total,
+                           'bad':        self._bad_total,
+                           'badversion': self._bad_version_total,
+                           'loadavg':    os.getloadavg()
+                           })
+        
     def getuptime(self):
         return time.time() - self._uptime
     
@@ -29,7 +66,7 @@ class RouterStats(object):
     def setrelayed(self, qty=1, type=''):
         """ 
         Increment the relayed-message count. Optionally increment it by amount
-        'qty' (defaults to 1). Optionally incremement the message-specific relay count
+        'qty' (defaults to 1). Optionally increment the message-specific relay count
         at the same time as the global relayed-message count.
         
         eg stats.relayed() # incremement global count by 1
