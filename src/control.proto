@@ -118,6 +118,18 @@ message APIKeyResponse {
 	optional int32 created = 12;
 }
 
+message StatsResponse {
+	enum StatsType {
+		ROUTER = 1;
+		DB     = 2;
+		OTHER  = 3;
+	}
+	
+	optional StatsType statsType = 1;
+	optional string stats = 2; // json packed
+}
+
+
 message ControlType {
     enum StatusType {
         SUCCESS         = 1;
@@ -164,7 +176,7 @@ message ControlType {
     	THREADS_LIST         = 300;
     }
     
-    optional double version      = 1 [default = 20130731.00];
+    optional double version      = 1 [default = 20131005.00];
     optional bytes seq           = 2; // used to match commands to replies, must be preserved in replies 
     optional string dst          = 3;
     optional string src          = 4;
@@ -184,6 +196,7 @@ message ControlType {
     optional QueryRequestList    queryRequestList    = 16;
     repeated QueryResponse       queryResponseList   = 17;
     optional ListThreadsResponse listThreadsResponse = 18;
+    optional StatsResponse       statsResponse       = 19;
 }
 
 
