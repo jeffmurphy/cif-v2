@@ -111,7 +111,12 @@ def stats(myid, apikey, dst='cif-router'):
     cf.sendmsg(RouterStats.makecontrolmsg(myid, dst, apikey), statsFinished)
 
 def statsFinished(msg):
-    print "stats finished ", msg
+    if msg.status == control_pb2.ControlType.SUCCESS:
+        st = control_pb2._CONTROLTYPE_COMMANDTYPE.values_by_number[msg.statsResponse.statsType].name
+        print "stats received for: " + st
+        print "stats contents: " + msg.statsResponse.stats
+    else:
+        print "stats reply indicates failure: " + msg.statsResponse.statusMsg
     
 def ping(myid, apikey, dst, num):
     more = True
