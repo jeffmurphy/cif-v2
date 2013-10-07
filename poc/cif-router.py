@@ -332,7 +332,7 @@ try:
                             elif msgto == myname and msg.type == control_pb2.ControlType.COMMAND:
                                 print "COMMAND for me: ", msgcommandtext
                                 
-                                mystats.setcontrols(1, msgcommand)
+                                mystats.setcontrols(1, msgcommandtext)
                                 
                                 """
                                 For REGISTER:
