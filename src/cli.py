@@ -112,7 +112,7 @@ def stats(myid, apikey, dst='cif-router'):
 
 def statsFinished(msg):
     if msg.status == control_pb2.ControlType.SUCCESS:
-        st = control_pb2._CONTROLTYPE_COMMANDTYPE.values_by_number[msg.statsResponse.statsType].name
+        st = control_pb2._STATSRESPONSE_STATSTYPE.values_by_number[msg.statsResponse.statsType].name
         print "stats received for: " + st
         print "stats contents: " + msg.statsResponse.stats
     else:
