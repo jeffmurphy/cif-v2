@@ -57,6 +57,7 @@ sys.path.append('../../libcif/lib')
 
 from CIF.RouterStats import *
 from CIF.CtrlCommands.Clients import *
+from CIF.CtrlCommands.Ping import *
 from CIFRouter.MiniClient import *
 from CIF.CtrlCommands.ThreadTracker import ThreadTracker
 
@@ -307,12 +308,12 @@ try:
             else:
                 from_zmqid = rawmsg[0] # save the ZMQ identity of who sent us this message
                 
-                print "Got msg: "#, msg.seq
+                #print "Got msg: "#, msg.seq
         
                 try:
                     cifsupport.versionCheck(msg)
                 except Exception as e:
-                    print "Received message has incompatible version: ", e
+                    print "\tReceived message has incompatible version: ", e
                     mystats.setbadversion(1, msg.version)
                 else:
                 
@@ -325,12 +326,12 @@ try:
                         
                         if msgfrom != '' and msg.apikey != '':
                             if msgto == myname and msg.type == control_pb2.ControlType.REPLY:
-                                print "REPLY for me: ", msgcommand
+                                print "\tREPLY for me: ", msgcommand
                                 if msgcommand == control_pb2.ControlType.APIKEY_GET:
-                                    print "Received a REPLY for an APIKEY_GET"
+                                    print "\tReceived a REPLY for an APIKEY_GET"
                                         
                             elif msgto == myname and msg.type == control_pb2.ControlType.COMMAND:
-                                print "COMMAND for me: ", msgcommandtext
+                                print "\tCOMMAND for me: ", msgcommandtext
                                 
                                 mystats.setcontrols(1, msgcommandtext)
                                 
@@ -343,7 +344,7 @@ try:
                                     you launch this program.
                                 """
                                 if msgcommand == control_pb2.ControlType.REGISTER:
-                                      print "REGISTER from: " + msgfrom
+                                      print "\tREGISTER from: " + msgfrom
                                       
                                       msg.status = control_pb2.ControlType.FAILED
                                       msg.type = control_pb2.ControlType.REPLY
@@ -354,7 +355,7 @@ try:
                                           msg.status = control_pb2.ControlType.SUCCESS
                                           msg.registerResponse.REQport = routerport
                                           msg.registerResponse.PUBport = publisherport
-                                          print "MiniClient has registered."
+                                          print "\tMiniClient has registered."
                                           socket.send_multipart([from_zmqid, '', msg.SerializeToString()])
 
                                       elif msgfrom == dbname and msg.apikey == dbkey:
@@ -363,8 +364,8 @@ try:
                                           msg.registerResponse.REQport = routerport
                                           msg.registerResponse.PUBport = publisherport
                                           open_for_business = True
-                                          print " DB has connected successfully. Sending reply to DB."
-                                          print "Starting embedded client"
+                                          print "\tDB has connected successfully. Sending reply to DB."
+                                          print "\tStarting embedded client"
                                           miniclient = MiniClient(apikey, "127.0.0.1", "127.0.0.1:" + str(routerport), 5557, miniclient_id, thread_tracker, True)
                                           socket.send_multipart([from_zmqid, '', msg.SerializeToString()])
 
@@ -378,17 +379,17 @@ try:
                                           register_wait_map[msg.apikey] = {'msgfrom': msgfrom, 'from_zmqid': from_zmqid, 'msgseq': msg.seq}
 
                                       else:
-                                          print " Not open_for_business yet. Go away."
+                                          print "\tNot open_for_business yet. Go away."
         
                                                   
                                 elif msgcommand == control_pb2.ControlType.UNREGISTER:
                                     """
                                     If the database unregisters, then we are not open_for_business any more.
                                     """
-                                    print "UNREGISTER from: " + msgfrom
+                                    print "\tUNREGISTER from: " + msgfrom
                                     if open_for_business == True:
                                         if msgfrom == dbname and msg.apikey == dbkey:
-                                            print "  DB unregistered. Closing for business."
+                                            print "\t\tDB unregistered. Closing for business."
                                             open_for_business = False
                                             clients.unregister(msgfrom)
                                             msg.status = control_pb2.ControlType.SUCCESS
@@ -404,7 +405,7 @@ try:
                                             unregister_wait_map[msg.apikey] = {'msgfrom': msgfrom, 'from_zmqid': from_zmqid, 'msgseq': msg.seq}
                                 
                                 elif msgcommand == control_pb2.ControlType.LISTCLIENTS:
-                                     print "LIST-CLIENTS for: " + msgfrom
+                                     print "\tLIST-CLIENTS for: " + msgfrom
                                      if open_for_business == True:
                                          rv = list_clients(msg.src, msg.apikey)
                                          msg.seq = msgid
@@ -418,7 +419,7 @@ try:
                                          socket.send_multipart( [ from_zmqid, '', msg.SerializeToString() ] )
                                 
                                 elif msg.command == control_pb2.ControlType.STATS:
-                                    print "STATS for: " + msgfrom
+                                    print "\tSTATS for: " + msgfrom
                                     
                                     if open_for_business == True:
                                         tmp = msg.dst
@@ -437,23 +438,26 @@ try:
                                     msg.status = control_pb2.ControlType.SUCCESS
                                     thread_tracker.asmessage(msg.listThreadsResponse)
                                     socket.send_multipart( [ from_zmqid, '', msg.SerializeToString() ] )
-
-            
+                        
+                                if msg.command == control_pb2.ControlType.PING:
+                                    c = Ping.makereply(msg)
+                                    socket.send_multipart( [ from_zmqid, '', c.SerializeToString() ] )
+                                    
                                 elif msgcommand == control_pb2.ControlType.IPUBLISH:
-                                     print "IPUBLISH from: " + msgfrom
+                                     print "\tIPUBLISH from: " + msgfrom
                                      if open_for_business == True:
                                          rv = dosubscribe(from_zmqid, msg)
                                          msg.status = rv
                                          socket.send_multipart( [from_zmqid, '', msg.SerializeToString()] )
                             else:
-                                print "COMMAND for someone else: cmd=", msgcommandtext, "src=", msgfrom, " dst=", msgto
+                                print "\tCOMMAND for someone else: cmd=", msgcommandtext, "src=", msgfrom, " dst=", msgto
                                 msgto_zmqid = clients.getzmqidentity(msgto)
                                 if msgto_zmqid != None:
                                     socket.send_multipart([msgto_zmqid, '', msg.SerializeToString()])
                                 else:
-                                    print "Unknown message destination: ", msgto
+                                    print "\tUnknown message destination: ", msgto
                         else:
-                            print "msgfrom and/or msg.apikey is empty"
+                            print "\tmsgfrom and/or msg.apikey is empty"
                         
 except KeyboardInterrupt:
     print "Shut down."
