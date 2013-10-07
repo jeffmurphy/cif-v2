@@ -51,12 +51,15 @@ class RouterStats(object):
         return m
     
     def asjson(self):
-        return json.dumps({'uptime':     self.getuptime(),
-                           'relayed':    self._relayed_total,
-                           'controls':   self._controls_total,
-                           'bad':        self._bad_total,
-                           'badversion': self._bad_version_total,
-                           'loadavg':    os.getloadavg()
+        return json.dumps({'uptime':          self.getuptime(),
+                           'relayed':         self._relayed_total,
+                           'controls':        self._controls_total,
+                           'bad':             self._bad_total,
+                           'badversion':      self._bad_version_total,
+                           'loadavg':         os.getloadavg(),
+                           'per_controls':    self._controls,
+                           'per_bad_version': self._bad_version,
+                           'per_relayed':     self._relayed
                            })
         
     def getuptime(self):
