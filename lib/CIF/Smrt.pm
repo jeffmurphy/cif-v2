@@ -48,7 +48,9 @@ use CIF::Msg::Control;
 use CIF::Msg::Support;
 
 use Time::HiRes qw/nanosleep/;
-use ZeroMQ qw/:all/;
+use ZMQ;
+use ZMQ::Constants ':all';
+
 
 # the lower this is, the higher the chance of 
 # threading collisions resulting in a seg fault.
