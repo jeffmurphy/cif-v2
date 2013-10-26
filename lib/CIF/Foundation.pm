@@ -7,7 +7,7 @@ use warnings;
 use CIF::Msg;
 use CIF::Msg::Control;
 use CIF::Msg::Support;
-use ZMQ qw(ZMQ_PUB ZMQ_REQ ZMQ_IDENTITY ZMQ_SNDMORE ZMQ_RCVMORE ZMQ_NOBLOCK);
+use ZMQ ':all';
 use ZMQ::LibZMQ3;
 use ZMQ;
 use Data::Dumper;
