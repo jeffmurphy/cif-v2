@@ -57,7 +57,7 @@ sub send_multipart {
 		$rv = zmq_msg_send($self->{req}, $parts->[$i], ZMQ_SNDMORE);
 		die "zmq_msg_send failed with $rv" if ($rv == -1);
 	}
-	$rv = zmq_msg_send($self->{req}, $parts->[$#$parts]));
+	$rv = zmq_msg_send($self->{req}, $parts->[$#$parts]);
 	die "zmq_msg_send failed with $rv" if ($rv == -1);
 }
 
