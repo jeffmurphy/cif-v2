@@ -7,7 +7,7 @@ use warnings;
 use CIF::Msg;
 use CIF::Msg::Control;
 use CIF::Msg::Support;
-use ZMQ ':all';
+use ZMQ::Constants ':all';
 use ZMQ::LibZMQ3;
 use ZMQ;
 use Data::Dumper;
@@ -54,11 +54,11 @@ sub send_multipart {
 
 	
 	for (my $i = 0; $i < $#$parts ; $i++) {
-		$rv = zmq_send($self->{req}, $parts->[$i], ZMQ_SNDMORE);
-		die "zmq_send failed with $rv" if ($rv == -1);
+		$rv = zmq_msg_send($self->{req}, $parts->[$i], ZMQ_SNDMORE);
+		die "zmq_msg_send failed with $rv" if ($rv == -1);
 	}
-	$rv = zmq_send($self->{req}, $parts->[$#$parts]);
-	die "zmq_send failed with $rv" if ($rv == -1);
+	$rv = zmq_msg_send($self->{req}, $parts->[$#$parts]));
+	die "zmq_msg_send failed with $rv" if ($rv == -1);
 }
 
 sub recv_multipart {
