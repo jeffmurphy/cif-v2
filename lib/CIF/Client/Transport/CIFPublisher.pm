@@ -6,8 +6,9 @@ use warnings;
 
 use CIF::Msg;
 use CIF::Msg::Control;
-use ZeroMQ qw(ZMQ_PUB ZMQ_REQ ZMQ_IDENTITY ZMQ_SNDMORE ZMQ_RCVMORE ZMQ_NOBLOCK);
-use ZeroMQ::Raw;
+use ZMQ::Constants qw(ZMQ_PUB ZMQ_REQ ZMQ_IDENTITY ZMQ_SNDMORE ZMQ_RCVMORE ZMQ_NOBLOCK);
+use ZMQ::LibZMQ3;
+use ZMQ;
 use Data::Dumper;
 use Carp qw(cluck confess);
 use Sys::Hostname;
