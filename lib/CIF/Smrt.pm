@@ -560,7 +560,7 @@ sub process {
     #$workers->send_as(json => $_) foreach(@$array);
     $self->send_as_json($workers, $_) foreach (@$array);
     
-    my $poller = ZeroMQ::Poller->new(
+    my $poller = ZMQ::Poller->new(
         {
             name    => 'workers_sum',
             socket  => $workers_sum,
@@ -658,7 +658,7 @@ sub worker_routine {
     my $workers_sum = $context->socket(ZMQ_PUSH);
     $workers_sum->connect(WORKER_SUM_CONNECTION());
     
-     my $poller = ZeroMQ::Poller->new(
+     my $poller = ZMQ::Poller->new(
         {
             name    => 'worker',
             socket  => $receiver,
@@ -815,7 +815,7 @@ sub sender_routine {
     my $return = $context->socket(ZMQ_PUSH);
     $return->connect(RETURN_CONNECTION());
     
-    my $poller = ZeroMQ::Poller->new(
+    my $poller = ZMQ::Poller->new(
         {
             name    => 'sender',
             socket  => $sender,
