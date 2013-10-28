@@ -560,18 +560,9 @@ sub process {
     #$workers->send_as(json => $_) foreach(@$array);
     $self->send_as_json($workers, $_) foreach (@$array);
     
-    my $poller = ZMQ::Poller->new(
-        {
-            name    => 'workers_sum',
-            socket  => $workers_sum,
-            events  => ZMQ_POLLIN,
-        },
-        {
-            name    => 'return',
-            socket  => $return,
-            events  => ZMQ_POLLIN,
-        },
-    );
+    my $poller = ZMQ::Poller->new();
+    $poller->register($workers_sum, ZMQ_POLLOUT);
+    $poller->register($return, ZMQ_POLLIN);
     
     my $done = 0;
     my $total_recs = $master_count;
@@ -580,52 +571,60 @@ sub process {
         debug('waiting on message...') if($::debug && $::debug > 1);
         
         debug('polling...') if($::debug > 5);
-        $poller->poll();
+        my @fired = $poller->poll();
         debug('found msg') if($::debug && $::debug > 1);
-        if($poller->has_event('workers_sum')){
-            my $msg = $workers_sum->recv()->data();
-            for($msg){
-                if(/^COMPLETED:(\d+)$/){
-                    $master_count -= $1; 
-                    last;
-                }
-                if(/^ADDED:(\d+)$/){
-                    $total_recs += $1;
-                    last;
-                }
-            }
+        
+        for (@fired) {
+        	if ($_->{socket} == $workers_sum) {
+	            my $msg = $workers_sum->recv()->data();
+	            for($msg){
+	                if(/^COMPLETED:(\d+)$/){
+	                    $master_count -= $1; 
+	                    last;
+	                }
+	                if(/^ADDED:(\d+)$/){
+	                    $total_recs += $1;
+	                    last;
+	                }
+	            }
+	        }
+	        
+	        ## TODO -- should this be after the return check?
+	        debug('master count: '.$master_count) if($::debug && $::debug > 1);
+	        if($master_count == 0){
+	            debug('sending total: '.$total_recs) if($::debug && $::debug > 1);
+	            my $tosend = 'TOTAL:'.$total_recs;
+	            $ctrl->sendmsg($tosend, 0); 
+	            $ctrl->sendmsg('WRK_DONE', 0);
+	        }
+	        # waiting for sender
+	        
+	        if ($_->{socket} == $return) {
+	            debug('return msg received') if($::debug && $::debug > 1);
+	            my $msg = $return->recv();
+	
+	            if($msg->data() =~ /^ERROR: /){
+					$err = $msg->data();
+	                $sent_recs = -1;
+	            } else {
+					#$msg = MessageType->decode($msg->data());
+	                # size of the array returned +1
+					#$sent_recs += ($#{$msg->get_data()} + 1);
+	                $sent_recs += $msg->data();
+	            }
+	        }
+	        nanosleep NSECS_PER_MSEC;
+	        # total_recs is based on 0 ... X not -1 ... X
+	        debug('sent recs: '.$sent_recs);
+	        debug('total recs: '.$total_recs);
         }
         
-        ## TODO -- should this be after the return check?
-        debug('master count: '.$master_count) if($::debug && $::debug > 1);
-        if($master_count == 0){
-            debug('sending total: '.$total_recs) if($::debug && $::debug > 1);
-            my $tosend = 'TOTAL:'.$total_recs;
-            $ctrl->sendmsg($tosend, 0); 
-            $ctrl->sendmsg('WRK_DONE', 0);
-        }
-        # waiting for sender
-        if($poller->has_event('return')){
-            debug('return msg received') if($::debug && $::debug > 1);
-            my $msg = $return->recv();
-
-            if($msg->data() =~ /^ERROR: /){
-				$err = $msg->data();
-                $sent_recs = -1;
-            } else {
-				#$msg = MessageType->decode($msg->data());
-                # size of the array returned +1
-				#$sent_recs += ($#{$msg->get_data()} + 1);
-                $sent_recs += $msg->data();
-            }
-        }
-        nanosleep NSECS_PER_MSEC;
-        # total_recs is based on 0 ... X not -1 ... X
-        debug('sent recs: '.$sent_recs);
-        debug('total recs: '.$total_recs);
     } while($sent_recs != -1 && $sent_recs < $total_recs);
 
     $ctrl->sendmsg('WRK_DONE', 0);
+    
+    $poller->unregister($return);
+    $poller->unregister($workers_sum);
     
     $workers->close();
     $workers_sum->close();
@@ -658,119 +657,120 @@ sub worker_routine {
     my $workers_sum = $context->socket(ZMQ_PUSH);
     $workers_sum->connect(WORKER_SUM_CONNECTION());
     
-     my $poller = ZMQ::Poller->new(
-        {
-            name    => 'worker',
-            socket  => $receiver,
-            events  => ZMQ_POLLIN,
-        },
-        {
-            name    => 'ctrl',
-            socket  => $ctrl,
-            events  => ZMQ_POLLIN,
-        },
-    ); 
+    my $poller = ZMQ::Poller->new();
+    $poller->register($receiver, ZMQ_POLLIN);
+    $poller->register($ctrl, ZMQ_POLLIN);
        
     my $done = 0;
     my $recs = 0;
     while(!$done){
         debug('polling...') if($::debug > 5);
-        $poller->poll();
-        debug('checking control...') if($::debug > 5);
-        if($poller->has_event('ctrl')){
-            my $msg = $ctrl->recv()->data();
-            debug('ctrl sig received: '.$msg) if($::debug > 5 && $msg eq 'WRK_DONE');
-            $done = 1 if($msg eq 'WRK_DONE');
+        my @fired = $poller->poll();
+        
+        for (@fired) {
+        	
+	        debug('checking control...') if($::debug > 5);
+	        
+	        if ($_->{socket} == $ctrl) {
+	            my $msg = $ctrl->recv()->data();
+	            debug('ctrl sig received: '.$msg) if($::debug > 5 && $msg eq 'WRK_DONE');
+	            $done = 1 if($msg eq 'WRK_DONE');
+	        }
+	        debug('checking event...') if($::debug > 4);
+	        
+	        if ($_->{socket} == $receiver) {
+	            debug('receiving event...') if($::debug > 4);
+	            my $msg = $self->recv_as_json($receiver); #$receiver->recv_as('json');
+	            debug('processing message...') if($::debug > 4);
+	            
+	            debug('generating uuid...') if($::debug > 4);
+	            $msg->{'id'} = generate_uuid_random();
+	            
+	            if($::debug > 1){
+	                my $thing = $msg->{'address'} || $msg->{'malware_md5'} || $msg->{'malware_sha1'};
+	                debug('uuid: '.$msg->{'id'}.' - '.$msg->{'reporttime'}.' - '.$thing.' - '.$msg->{'assessment'}.' - '.$msg->{'description'});
+	            }
+	    
+	            debug('generating iodef...') if($::debug > 3);
+	
+	            my $iodef = Iodef::Pb::Simple->new($msg);
+	
+	            $iodef = [ $iodef ] unless(ref($iodef) eq 'ARRAY');
+	            if($#{$iodef} > 0){
+	                debug('ADDING:'.($#{$iodef}));
+	                my $tosend = 'ADDED:'.($#{$iodef});
+	                $workers_sum->sendmsg($tosend, 0);
+	                nanosleep NSECS_PER_MSEC;
+	            }
+	            
+	            my @results;
+	            if($self->get_postprocess()) {
+	            	my $_pp = $self->get_postprocess;
+	
+	            	my @_pp;
+	            	if (ref($_pp) eq "ARRAY") {
+	            		@_pp = @$_pp;
+	            	}
+	            	else {
+	            		push @_pp, $_pp;
+	            	}
+	            	
+	            	debug("in get_postprocess section with processors: ". join(',', @_pp)) if ($::debug > 3);
+	            	
+	                foreach my $p (@_pp) {
+	                    my ($err,$array);
+					    foreach my $i (@$iodef){
+			                    	try {
+			                    	    $array = $p->process($self,$iodef);
+			                    	} catch {
+			                    	    $err = shift;
+			                    	};
+			                    	debug($err) if($::debug && $err);
+			                    	push @results, @$array if ($array && @$array);
+					    }
+	                }
+	
+	                # we don't do +1 here cause the parent already knows about the
+	                # original record
+	             
+	                if($#results > -1){
+	                    @results = map { encode_base64(IODEFDocumentType->new({ lang => 'EN', Incident => $_ })->encode()) } @results;
+	                    # sometimes the $sender->send_as will get there faster
+	                    # than the $workers_sum will make it up and over to the sender
+	                    # it's possible we'll have to re-work this with the sender thread, but it works for now
+	                    #$workers_sum->send(($#results+1));
+	                    my $tosend = 'ADDED:'.($#results+1);
+	                    $workers_sum->sendmsg($tosend, 0);
+	                    nanosleep NSECS_PER_MSEC;
+	                }
+	            }
+	            #print "IODEF ", Dumper($iodef) . "\n";            
+	            # pass base64 bc send_as converts to utf8 which throws off PB decoding later on
+	            
+	            if (ref($iodef) eq "ARRAY") {
+	            	for my $i (@$iodef) {
+	            		push @results, encode_base64($i->encode());
+	            	}	
+	            } else {
+	            	push(@results, encode_base64($iodef->encode()));
+	            }
+	            
+	            debug('sending message...') if($::debug > 3);
+	
+	            #$sender->send_as('json' => \@results);
+	            $self->send_as_json($sender, \@results);
+	            
+	            debug('message sent...') if($::debug > 3);
+	            $workers_sum->sendmsg('COMPLETED:1', 11);
+	        }
+        	# thread/zmq safety requirement
+        	nanosleep NSECS_PER_MSEC;
         }
-        debug('checking event...') if($::debug > 4);
-        if($poller->has_event('worker')){
-            debug('receiving event...') if($::debug > 4);
-            my $msg = $self->recv_as_json($receiver); #$receiver->recv_as('json');
-            debug('processing message...') if($::debug > 4);
-            
-            debug('generating uuid...') if($::debug > 4);
-            $msg->{'id'} = generate_uuid_random();
-            
-            if($::debug > 1){
-                my $thing = $msg->{'address'} || $msg->{'malware_md5'} || $msg->{'malware_sha1'};
-                debug('uuid: '.$msg->{'id'}.' - '.$msg->{'reporttime'}.' - '.$thing.' - '.$msg->{'assessment'}.' - '.$msg->{'description'});
-            }
-    
-            debug('generating iodef...') if($::debug > 3);
-
-            my $iodef = Iodef::Pb::Simple->new($msg);
-
-            $iodef = [ $iodef ] unless(ref($iodef) eq 'ARRAY');
-            if($#{$iodef} > 0){
-                debug('ADDING:'.($#{$iodef}));
-                my $tosend = 'ADDED:'.($#{$iodef});
-                $workers_sum->sendmsg($tosend, 0);
-                nanosleep NSECS_PER_MSEC;
-            }
-            
-            my @results;
-            if($self->get_postprocess()) {
-            	my $_pp = $self->get_postprocess;
-
-            	my @_pp;
-            	if (ref($_pp) eq "ARRAY") {
-            		@_pp = @$_pp;
-            	}
-            	else {
-            		push @_pp, $_pp;
-            	}
-            	
-            	debug("in get_postprocess section with processors: ". join(',', @_pp)) if ($::debug > 3);
-            	
-                foreach my $p (@_pp) {
-                    my ($err,$array);
-				    foreach my $i (@$iodef){
-		                    	try {
-		                    	    $array = $p->process($self,$iodef);
-		                    	} catch {
-		                    	    $err = shift;
-		                    	};
-		                    	debug($err) if($::debug && $err);
-		                    	push @results, @$array if ($array && @$array);
-				    }
-                }
-
-                # we don't do +1 here cause the parent already knows about the
-                # original record
-             
-                if($#results > -1){
-                    @results = map { encode_base64(IODEFDocumentType->new({ lang => 'EN', Incident => $_ })->encode()) } @results;
-                    # sometimes the $sender->send_as will get there faster
-                    # than the $workers_sum will make it up and over to the sender
-                    # it's possible we'll have to re-work this with the sender thread, but it works for now
-                    #$workers_sum->send(($#results+1));
-                    my $tosend = 'ADDED:'.($#results+1);
-                    $workers_sum->sendmsg($tosend, 0);
-                    nanosleep NSECS_PER_MSEC;
-                }
-            }
-            #print "IODEF ", Dumper($iodef) . "\n";            
-            # pass base64 bc send_as converts to utf8 which throws off PB decoding later on
-            
-            if (ref($iodef) eq "ARRAY") {
-            	for my $i (@$iodef) {
-            		push @results, encode_base64($i->encode());
-            	}	
-            } else {
-            	push(@results, encode_base64($iodef->encode()));
-            }
-            
-            debug('sending message...') if($::debug > 3);
-
-            #$sender->send_as('json' => \@results);
-            $self->send_as_json($sender, \@results);
-            
-            debug('message sent...') if($::debug > 3);
-            $workers_sum->sendmsg('COMPLETED:1', 11);
-        }
-        # thread/zmq safety requirement
-        nanosleep NSECS_PER_MSEC;
     }
+    
+    $poller->unregister($receiver);
+    $poller->unregister($ctrl);
+    
     debug('sender->close') if($::debug > 2);
     $sender->close();
     debug('ctrl->close') if($::debug > 2);
@@ -815,91 +815,90 @@ sub sender_routine {
     my $return = $context->socket(ZMQ_PUSH);
     $return->connect(RETURN_CONNECTION());
     
-    my $poller = ZMQ::Poller->new(
-        {
-            name    => 'sender',
-            socket  => $sender,
-            events  => ZMQ_POLLIN,
-        },
-        {
-            name    => 'ctrl',
-            socket  => $ctrl,
-            events  => ZMQ_POLLIN,
-        },
-    ); 
+    my $poller = ZMQ::Poller->new();
+    $poller->register($sender, ZMQ_POLLIN);
+    $poller->register($ctrl, ZMQ_POLLIN);
+
                  
     my $queue; 
     my $done = 0;
     my ($total_recs,$sent_recs) = (0,0);
     do {
         debug('polling...') if($::debug > 4);
-        $poller->poll();
+        my @fired = $poller->poll();
         
-        # we wanna check this one first, since it'll come in later
-        if($poller->has_event('ctrl')) {
-            my $msg = $ctrl->recv()->data();
-            debug('ctrl sig received: '.$msg) if($::debug > 2);
-            for($msg){
-                if(/^TOTAL:(\d+)$/){
-                    $total_recs = $1;
-                    debug('total received: '.$total_recs) if($::debug > 2);
-                    last;
-                }
-            }
-        }
-        # we need to move this out of the if/then incase we're waiting on a kill
-        if($poller->has_event('sender')){
-            debug('found event...') if($::debug > 2);
-            my $msg = $self->recv_as_json($sender); #$sender->recv_as('json');
-            
-            my $num_msgs = ($#{$msg}+1);
-            debug('msgs received: '.$num_msgs) if($::debug > 2);
-            foreach (@$msg) {
-            	push @$queue, decode_base64($_);
-            }
-
-            debug('msgs in queue: '.($#{$queue}+1)) if($::debug > 2);
+        for (@fired) {
+        	
+	        # we wanna check this one first, since it'll come in later
+	        if ($_->{socket} == $ctrl) {
+	            my $msg = $ctrl->recv()->data();
+	            debug('ctrl sig received: '.$msg) if($::debug > 2);
+	            for($msg){
+	                if(/^TOTAL:(\d+)$/){
+	                    $total_recs = $1;
+	                    debug('total received: '.$total_recs) if($::debug > 2);
+	                    last;
+	                }
+	            }
+	        }
+	        # we need to move this out of the if/then incase we're waiting on a kill
+	        
+	        if ($_->{socket} == $sender) {
+	            debug('found event...') if($::debug > 2);
+	            my $msg = $self->recv_as_json($sender); #$sender->recv_as('json');
+	            
+	            my $num_msgs = ($#{$msg}+1);
+	            debug('msgs received: '.$num_msgs) if($::debug > 2);
+	            foreach (@$msg) {
+	            	push @$queue, decode_base64($_);
+	            }
+	
+	            debug('msgs in queue: '.($#{$queue}+1)) if($::debug > 2);
+	        }
+	        
+	        debug("batch $batch_control tot_recs $total_recs send_recs $sent_recs in_queue  ". @$queue);
+	        
+	        # we're not done till we at-least have a total from the 
+	        # master thread
+	        # if what's in the queue is the difference between sent and total
+	        # we're done
+	        if($total_recs && ($sent_recs + (($#{$queue}+1)) == $total_recs)){
+	            $done = 1;
+	            debug("apparently we're done") if ($::debug > 2);
+	        }
+	        # if we have a total number and it's equal to our sent number
+	        # we're done
+	        if($total_recs && ($sent_recs == $total_recs)){
+	            $done = 1;
+	            debug("apparently we're done") if ($::debug > 2);
+	        }
+	
+	        if($#{$queue} > $batch_control || $done){
+	            debug('sending data to router: '.($#{$queue}+1)) if($::debug > 2);
+	            my ($err,$ret) = $self->send($queue);
+	            debug('returning answer from router...') if($::debug > 2);
+	            
+	            # if the answers was 'success' then send the number of messages we submitted
+	            # back to process()
+	            
+	            my $status = $ret->get_status();
+	            
+	            if($status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
+	            	my $tosend = "ERROR: " . ($ret->{statusMsg} || "none");
+	                $return->sendmsg($tosend, 0);
+	            } else {
+	                $return->sendmsg($ret->{statusMsg}, 0); # this contains the # of items submitted
+	            }
+	            $sent_recs += ($#{$queue}+1);
+	            $queue = [];
+	        }
+	        nanosleep NSECS_PER_MSEC;
         }
         
-        debug("batch $batch_control tot_recs $total_recs send_recs $sent_recs in_queue  ". @$queue);
-        
-        # we're not done till we at-least have a total from the 
-        # master thread
-        # if what's in the queue is the difference between sent and total
-        # we're done
-        if($total_recs && ($sent_recs + (($#{$queue}+1)) == $total_recs)){
-            $done = 1;
-            debug("apparently we're done") if ($::debug > 2);
-        }
-        # if we have a total number and it's equal to our sent number
-        # we're done
-        if($total_recs && ($sent_recs == $total_recs)){
-            $done = 1;
-            debug("apparently we're done") if ($::debug > 2);
-        }
-
-        if($#{$queue} > $batch_control || $done){
-            debug('sending data to router: '.($#{$queue}+1)) if($::debug > 2);
-            my ($err,$ret) = $self->send($queue);
-            debug('returning answer from router...') if($::debug > 2);
-            
-            # if the answers was 'success' then send the number of messages we submitted
-            # back to process()
-            
-            my $status = $ret->get_status();
-            
-            if($status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
-            	my $tosend = "ERROR: " . ($ret->{statusMsg} || "none");
-                $return->sendmsg($tosend, 0);
-            } else {
-                $return->sendmsg($ret->{statusMsg}, 0); # this contains the # of items submitted
-            }
-            $sent_recs += ($#{$queue}+1);
-            $queue = [];
-        }
-        nanosleep NSECS_PER_MSEC;
-
     } while (!$done);
+    
+    $poller->unregister($sender);
+    $poller->unregister($ctrl);
     
     debug('sender done: sender->close') if($::debug > 1);;
     $sender->close();
