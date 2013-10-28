@@ -487,7 +487,7 @@ sub send_as_json {
 	my $sock = shift;
 	my $buffer = shift;
 	my $json = encode_json $buffer;
-	return zmq_sendmsg($sock, $buffer, 0);
+	return zmq_sendmsg($sock, $json, 0);
 }
 
 sub recv_as_json {
@@ -625,7 +625,7 @@ sub process {
         debug('total recs: '.$total_recs);
     } while($sent_recs != -1 && $sent_recs < $total_recs);
 
-    $ctrl->sendmsg('WRK_DONE', 8);
+    $ctrl->sendmsg('WRK_DONE', 0);
     
     $workers->close();
     $workers_sum->close();
@@ -641,7 +641,7 @@ sub worker_routine {
     my $self = shift;
    
     require Iodef::Pb::Simple;
-    my $context = ZeroMQ::Context->new();
+    my $context = ZMQ::Context->new();
     
     debug('starting worker: '.threads->tid()) if($::debug > 1);
     
@@ -704,7 +704,7 @@ sub worker_routine {
             if($#{$iodef} > 0){
                 debug('ADDING:'.($#{$iodef}));
                 my $tosend = 'ADDED:'.($#{$iodef});
-                $workers_sum->sendmsg($tosend, length($tosend));
+                $workers_sum->sendmsg($tosend, 0);
                 nanosleep NSECS_PER_MSEC;
             }
             
@@ -745,7 +745,7 @@ sub worker_routine {
                     # it's possible we'll have to re-work this with the sender thread, but it works for now
                     #$workers_sum->send(($#results+1));
                     my $tosend = 'ADDED:'.($#results+1);
-                    $workers_sum->sendmsg($tosend, length($tosend));
+                    $workers_sum->sendmsg($tosend, 0);
                     nanosleep NSECS_PER_MSEC;
                 }
             }
@@ -801,7 +801,7 @@ sub sender_routine {
     
     my $batch_control = $self->get_batch_control();
     
-    my $context = ZeroMQ::Context->new();
+    my $context = ZMQ::Context->new();
     
     debug('starting sender thread...') if($::debug > 1);
        
@@ -890,9 +890,9 @@ sub sender_routine {
             
             if($status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
             	my $tosend = "ERROR: " . ($ret->{statusMsg} || "none");
-                $return->sendmsg($tosend, length($tosend));
+                $return->sendmsg($tosend, 0);
             } else {
-                $return->sendmsg($ret->{statusMsg}, length($ret->{statusMsg})); # this contains the # of items submitted
+                $return->sendmsg($ret->{statusMsg}, 0); # this contains the # of items submitted
             }
             $sent_recs += ($#{$queue}+1);
             $queue = [];
