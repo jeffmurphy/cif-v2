@@ -38,6 +38,7 @@ use Module::Pluggable require => 1;
 use Digest::SHA qw/sha1_hex/;
 use URI::Escape;
 use Try::Tiny;
+use JSON;
 
 use Net::SSLeay;
 Net::SSLeay::SSLeay_add_ssl_algorithms();
@@ -481,6 +482,21 @@ sub preprocess_routine {
     return(undef,\@array);
 }
 
+sub send_as_json {
+	my $self = shift;
+	my $sock = shift;
+	my $buffer = shift;
+	my $json = encode_json $buffer;
+	$sock->send($buffer, length($buffer));
+}
+
+sub recv_as_json {
+	my $self = shift;
+	my $sock = shift;
+	my $buffer = $sock->recv();
+	return decode_json $buffer;
+}
+
 sub process {
     my $self = shift;
     my $args = shift;
@@ -488,7 +504,7 @@ sub process {
     # do this first so the threads don't copy the recs into their mem
     debug('setting up zmq interfaces') if($::debug);
    
-    my $context = ZeroMQ::Context->new();
+    my $context = ZMQ::Context->new();
     my $workers = $context->socket(ZMQ_PUSH);
     debug('setting up zmq interfaces: workers->bind') if($::debug);
     
@@ -501,7 +517,7 @@ sub process {
     
     # feature of zmq, pub/sub's need a warm up msg
     debug('sending ctrl warm-up msg...');
-    $ctrl->send('WARMING_UP');
+    $ctrl->send('WARMING_UP', 9, 0);
     
     my $return = $context->socket(ZMQ_PULL);
     $return->bind(RETURN_CONNECTION());
@@ -542,7 +558,8 @@ sub process {
 
     ## TODO -- batch this out a little
     debug('sending to workers...') if($::debug);
-    $workers->send_as(json => $_) foreach(@$array);
+    #$workers->send_as(json => $_) foreach(@$array);
+    $self->send_as_json($workers, $_) foreach (@$array);
     
     my $poller = ZeroMQ::Poller->new(
         {
@@ -584,8 +601,9 @@ sub process {
         debug('master count: '.$master_count) if($::debug && $::debug > 1);
         if($master_count == 0){
             debug('sending total: '.$total_recs) if($::debug && $::debug > 1);
-            $ctrl->send('TOTAL:'.$total_recs);
-            $ctrl->send('WRK_DONE');
+            my $tosend = 'TOTAL:'.$total_recs;
+            $ctrl->send($tosend, length($tosend));
+            $ctrl->send('WRK_DONE', 8);
         }
         # waiting for sender
         if($poller->has_event('return')){
@@ -593,12 +611,12 @@ sub process {
             my $msg = $return->recv();
 
             if($msg->data() =~ /^ERROR: /){
-		$err = $msg->data();
+				$err = $msg->data();
                 $sent_recs = -1;
             } else {
-		#$msg = MessageType->decode($msg->data());
+				#$msg = MessageType->decode($msg->data());
                 # size of the array returned +1
-		#$sent_recs += ($#{$msg->get_data()} + 1);
+				#$sent_recs += ($#{$msg->get_data()} + 1);
                 $sent_recs += $msg->data();
             }
         }
@@ -608,7 +626,7 @@ sub process {
         debug('total recs: '.$total_recs);
     } while($sent_recs != -1 && $sent_recs < $total_recs);
 
-    $ctrl->send('WRK_DONE');
+    $ctrl->send('WRK_DONE', 8);
     
     $workers->close();
     $workers_sum->close();
@@ -668,7 +686,7 @@ sub worker_routine {
         debug('checking event...') if($::debug > 4);
         if($poller->has_event('worker')){
             debug('receiving event...') if($::debug > 4);
-            my $msg = $receiver->recv_as('json');
+            my $msg = $self->recv_as_json($receiver); #$receiver->recv_as('json');
             debug('processing message...') if($::debug > 4);
             
             debug('generating uuid...') if($::debug > 4);
@@ -686,7 +704,8 @@ sub worker_routine {
             $iodef = [ $iodef ] unless(ref($iodef) eq 'ARRAY');
             if($#{$iodef} > 0){
                 debug('ADDING:'.($#{$iodef}));
-                $workers_sum->send('ADDED:'.($#{$iodef}));
+                my $tosend = 'ADDED:'.($#{$iodef});
+                $workers_sum->send($tosend, length($tosend));
                 nanosleep NSECS_PER_MSEC;
             }
             
@@ -726,7 +745,8 @@ sub worker_routine {
                     # than the $workers_sum will make it up and over to the sender
                     # it's possible we'll have to re-work this with the sender thread, but it works for now
                     #$workers_sum->send(($#results+1));
-                    $workers_sum->send('ADDED:'.($#results+1));
+                    my $tosend = 'ADDED:'.($#results+1);
+                    $workers_sum->send($tosend, length($tosend));
                     nanosleep NSECS_PER_MSEC;
                 }
             }
@@ -743,9 +763,11 @@ sub worker_routine {
             
             debug('sending message...') if($::debug > 3);
 
-            $sender->send_as('json' => \@results);
+            #$sender->send_as('json' => \@results);
+            $self->send_as_json($sender, \@results);
+            
             debug('message sent...') if($::debug > 3);
-            $workers_sum->send('COMPLETED:1');
+            $workers_sum->send('COMPLETED:1', 11);
         }
         # thread/zmq safety requirement
         nanosleep NSECS_PER_MSEC;
@@ -829,7 +851,7 @@ sub sender_routine {
         # we need to move this out of the if/then incase we're waiting on a kill
         if($poller->has_event('sender')){
             debug('found event...') if($::debug > 2);
-            my $msg = $sender->recv_as('json');
+            my $msg = $self->recv_as_json($sender); #$sender->recv_as('json');
             
             my $num_msgs = ($#{$msg}+1);
             debug('msgs received: '.$num_msgs) if($::debug > 2);
@@ -868,9 +890,10 @@ sub sender_routine {
             my $status = $ret->get_status();
             
             if($status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
-                $return->send("ERROR: " . ($ret->{statusMsg} || "none"));
+            	my $tosend = "ERROR: " . ($ret->{statusMsg} || "none");
+                $return->send($tosend, length($tosend));
             } else {
-                $return->send($ret->{statusMsg}); # this contains the # of items submitted
+                $return->send($ret->{statusMsg}, length($ret->{statusMsg})); # this contains the # of items submitted
             }
             $sent_recs += ($#{$queue}+1);
             $queue = [];
