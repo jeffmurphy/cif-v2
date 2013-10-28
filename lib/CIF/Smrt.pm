@@ -487,7 +487,7 @@ sub send_as_json {
 	my $sock = shift;
 	my $buffer = shift;
 	my $json = encode_json $buffer;
-	$sock->send($buffer, length($buffer));
+	$sock->zmq_send($buffer, length($buffer));
 }
 
 sub recv_as_json {
