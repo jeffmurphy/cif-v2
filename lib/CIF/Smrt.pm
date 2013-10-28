@@ -516,7 +516,7 @@ sub process {
     
     # feature of zmq, pub/sub's need a warm up msg
     debug('sending ctrl warm-up msg...');
-    $ctrl->sendmsg('WARMING_UP', length("WARMING_UP"), 0);
+    $ctrl->sendmsg('WARMING_UP', 0);
     
     my $return = $context->socket(ZMQ_PULL);
     $return->bind(RETURN_CONNECTION());
@@ -601,8 +601,8 @@ sub process {
         if($master_count == 0){
             debug('sending total: '.$total_recs) if($::debug && $::debug > 1);
             my $tosend = 'TOTAL:'.$total_recs;
-            $ctrl->sendmsg($tosend, length($tosend));
-            $ctrl->sendmsg('WRK_DONE', 8);
+            $ctrl->sendmsg($tosend, 0); 
+            $ctrl->sendmsg('WRK_DONE', 0);
         }
         # waiting for sender
         if($poller->has_event('return')){
