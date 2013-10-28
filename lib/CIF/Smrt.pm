@@ -487,7 +487,7 @@ sub send_as_json {
 	my $sock = shift;
 	my $buffer = shift;
 	my $json = encode_json $buffer;
-	return zmq_send($sock, $buffer, length($buffer));
+	return zmq_sendmsg($sock, $buffer, 0);
 }
 
 sub recv_as_json {
@@ -516,7 +516,7 @@ sub process {
     
     # feature of zmq, pub/sub's need a warm up msg
     debug('sending ctrl warm-up msg...');
-    $ctrl->send('WARMING_UP', length("WARMING_UP"), 0);
+    $ctrl->sendmsg('WARMING_UP', length("WARMING_UP"), 0);
     
     my $return = $context->socket(ZMQ_PULL);
     $return->bind(RETURN_CONNECTION());
@@ -601,8 +601,8 @@ sub process {
         if($master_count == 0){
             debug('sending total: '.$total_recs) if($::debug && $::debug > 1);
             my $tosend = 'TOTAL:'.$total_recs;
-            $ctrl->send($tosend, length($tosend));
-            $ctrl->send('WRK_DONE', 8);
+            $ctrl->sendmsg($tosend, length($tosend));
+            $ctrl->sendmsg('WRK_DONE', 8);
         }
         # waiting for sender
         if($poller->has_event('return')){
@@ -625,7 +625,7 @@ sub process {
         debug('total recs: '.$total_recs);
     } while($sent_recs != -1 && $sent_recs < $total_recs);
 
-    $ctrl->send('WRK_DONE', 8);
+    $ctrl->sendmsg('WRK_DONE', 8);
     
     $workers->close();
     $workers_sum->close();
@@ -704,7 +704,7 @@ sub worker_routine {
             if($#{$iodef} > 0){
                 debug('ADDING:'.($#{$iodef}));
                 my $tosend = 'ADDED:'.($#{$iodef});
-                $workers_sum->send($tosend, length($tosend));
+                $workers_sum->sendmsg($tosend, length($tosend));
                 nanosleep NSECS_PER_MSEC;
             }
             
@@ -745,7 +745,7 @@ sub worker_routine {
                     # it's possible we'll have to re-work this with the sender thread, but it works for now
                     #$workers_sum->send(($#results+1));
                     my $tosend = 'ADDED:'.($#results+1);
-                    $workers_sum->send($tosend, length($tosend));
+                    $workers_sum->sendmsg($tosend, length($tosend));
                     nanosleep NSECS_PER_MSEC;
                 }
             }
@@ -766,7 +766,7 @@ sub worker_routine {
             $self->send_as_json($sender, \@results);
             
             debug('message sent...') if($::debug > 3);
-            $workers_sum->send('COMPLETED:1', 11);
+            $workers_sum->sendmsg('COMPLETED:1', 11);
         }
         # thread/zmq safety requirement
         nanosleep NSECS_PER_MSEC;
@@ -890,9 +890,9 @@ sub sender_routine {
             
             if($status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
             	my $tosend = "ERROR: " . ($ret->{statusMsg} || "none");
-                $return->send($tosend, length($tosend));
+                $return->sendmsg($tosend, length($tosend));
             } else {
-                $return->send($ret->{statusMsg}, length($ret->{statusMsg})); # this contains the # of items submitted
+                $return->sendmsg($ret->{statusMsg}, length($ret->{statusMsg})); # this contains the # of items submitted
             }
             $sent_recs += ($#{$queue}+1);
             $queue = [];
