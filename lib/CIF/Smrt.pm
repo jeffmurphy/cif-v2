@@ -487,14 +487,13 @@ sub send_as_json {
 	my $sock = shift;
 	my $buffer = shift;
 	my $json = encode_json $buffer;
-	$sock->zmq_send($buffer, length($buffer));
+	return zmq_send($sock, $buffer, length($buffer));
 }
 
 sub recv_as_json {
 	my $self = shift;
 	my $sock = shift;
-	my $buffer = $sock->recv();
-	return decode_json $buffer;
+	return decode_json(zmq_recvmsg($sock, 0));
 }
 
 sub process {
