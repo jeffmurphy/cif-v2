@@ -517,7 +517,7 @@ sub process {
     
     # feature of zmq, pub/sub's need a warm up msg
     debug('sending ctrl warm-up msg...');
-    $ctrl->send('WARMING_UP', 9, 0);
+    $ctrl->send('WARMING_UP', length("WARMING_UP"), 0);
     
     my $return = $context->socket(ZMQ_PULL);
     $return->bind(RETURN_CONNECTION());
