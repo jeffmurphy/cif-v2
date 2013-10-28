@@ -12,7 +12,7 @@ use ZMQ;
 use Data::Dumper;
 use Carp qw(cluck confess);
 use Sys::Hostname;
-use Socket qw(inet_ntoa);
+
 
 use CIF::Foundation;
 
@@ -175,6 +175,8 @@ sub myip {
 	
 	my  ($name, $aliases, $addrtype, 
           $length, @addrs) = gethostbyname(hostname);
+    
+    return '127.0.0.1' if ($#addrs == -1); # FIX need to think on this
 	return inet_ntoa($addrs[0]);
 }
 
