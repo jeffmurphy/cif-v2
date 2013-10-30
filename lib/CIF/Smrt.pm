@@ -487,13 +487,14 @@ sub send_as_json {
 	my $sock = shift;
 	my $buffer = shift;
 	my $json = encode_json $buffer;
-	return zmq_sendmsg($sock, $json, 0);
+	return $sock->sendmsg($json, 0);
 }
 
 sub recv_as_json {
 	my $self = shift;
 	my $sock = shift;
-	return decode_json(zmq_recvmsg($sock, 0));
+	my $m = $sock->recvmsg();
+	return decode_json($m->data());
 }
 
 sub process {
@@ -526,12 +527,13 @@ sub process {
     
     # this needs to be started first
     debug('starting sender thread...');
-    threads->create('sender_routine',$self)->detach();
+    threads->create('sender_routine', $self)->detach();
+    sleep 1;
     # thread/zmq safety requirement
     # if the workers start too fast, this gets messed up, give it a 'tick' head-start
     # if we still see a race condition, send a warmup message to the sender either here
     # or through the workers as a 'checkin'
-    nanosleep NSECS_PER_MSEC;
+    nanosleep NSECS_PER_MSEC * 10;
     
     ## TODO -- req/reply checkins?
     debug('creating '.$self->get_threads().' worker threads...');
@@ -576,7 +578,7 @@ sub process {
         
         for (@fired) {
         	if ($_->{socket} == $workers_sum) {
-	            my $msg = $workers_sum->recv()->data();
+	            my $msg = $workers_sum->recvmsg()->data();
 	            for($msg){
 	                if(/^COMPLETED:(\d+)$/){
 	                    $master_count -= $1; 
@@ -601,7 +603,7 @@ sub process {
 	        
 	        if ($_->{socket} == $return) {
 	            debug('return msg received') if($::debug && $::debug > 1);
-	            my $msg = $return->recv();
+	            my $msg = $return->recvmsg();
 	
 	            if($msg->data() =~ /^ERROR: /){
 					$err = $msg->data();
@@ -672,7 +674,7 @@ sub worker_routine {
 	        debug('checking control...') if($::debug > 5);
 	        
 	        if ($_->{socket} == $ctrl) {
-	            my $msg = $ctrl->recv()->data();
+	            my $msg = $ctrl->recvmsg()->data();
 	            debug('ctrl sig received: '.$msg) if($::debug > 5 && $msg eq 'WRK_DONE');
 	            $done = 1 if($msg eq 'WRK_DONE');
 	        }
@@ -790,6 +792,7 @@ sub worker_routine {
 sub sender_routine {
     my $self        = shift;
     #my $total_recs  = shift;
+    debug('starting sender thread...' . threads->tid() ) if($::debug > 1);
       
     # do this within the thread
     require CIF::Client;
@@ -802,9 +805,7 @@ sub sender_routine {
     my $batch_control = $self->get_batch_control();
     
     my $context = ZMQ::Context->new();
-    
-    debug('starting sender thread...') if($::debug > 1);
-       
+           
     my $sender = $context->socket(ZMQ_PULL);
     $sender->bind(SENDER_CONNECTION());
     
@@ -831,7 +832,7 @@ sub sender_routine {
         	
 	        # we wanna check this one first, since it'll come in later
 	        if ($_->{socket} == $ctrl) {
-	            my $msg = $ctrl->recv()->data();
+	            my $msg = $ctrl->recvmsg()->data();
 	            debug('ctrl sig received: '.$msg) if($::debug > 2);
 	            for($msg){
 	                if(/^TOTAL:(\d+)$/){
