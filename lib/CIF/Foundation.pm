@@ -54,10 +54,10 @@ sub send_multipart {
 
 	
 	for (my $i = 0; $i < $#$parts ; $i++) {
-		$rv = zmq_msg_send($self->{req}, $parts->[$i], ZMQ_SNDMORE);
+		$rv = zmq_sendmsg($self->{req}, $parts->[$i], ZMQ_SNDMORE);
 		die "zmq_msg_send failed with $rv" if ($rv == -1);
 	}
-	$rv = zmq_msg_send($self->{req}, $parts->[$#$parts]);
+	$rv = zmq_sendmsg($self->{req}, $parts->[$#$parts]);
 	die "zmq_msg_send failed with $rv" if ($rv == -1);
 }
 
@@ -67,7 +67,7 @@ sub recv_multipart {
 	my $done = 0;
 	my $rv = 0;
 
-	while($rv = zmq_recv($self->{req})) {
+	while($rv = zmq_recvmsg($self->{req})) {
 			push @$parts, zmq_msg_data($rv);
 			#my $hasmore = zmq_getsockopt($self->{req}, ZMQ_RCVMORE);
 			#print "hasmore: $hasmore\n";sleep(1);
