@@ -173,8 +173,11 @@ for o, a in opts:
     elif o == "-k":
         apikey = a
 
-
-myip = socket.gethostbyname(socket.gethostname()) # has caveats
+myip = '127.0.0.1'
+try:
+    myip = socket.gethostbyname(socket.gethostname()) # has caveats
+except Exception as e:
+    print "Trouble finding out our local ip based on hostname: ", socket.gethostname()
 
 global cf
 global thread_tracker
