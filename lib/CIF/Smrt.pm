@@ -482,6 +482,8 @@ sub preprocess_routine {
     return(undef,\@array);
 }
 
+# added bc ZeroMQ had this but ZMQ doesn't.
+
 sub send_as_json {
 	my $self = shift;
 	my $sock = shift;
@@ -563,7 +565,7 @@ sub process {
     $self->send_as_json($workers, $_) foreach (@$array);
     
     my $poller = ZMQ::Poller->new();
-    $poller->register($workers_sum, ZMQ_POLLOUT);
+    $poller->register($workers_sum, ZMQ_POLLIN);
     $poller->register($return, ZMQ_POLLIN);
     
     my $done = 0;
@@ -576,8 +578,8 @@ sub process {
         my @fired = $poller->poll();
         debug('found msg') if($::debug && $::debug > 1);
         
-        for (@fired) {
-        	if ($_->{socket} == $workers_sum) {
+        for my $pending_event (@fired) {
+        	if ($pending_event->{socket} == $workers_sum) {
 	            my $msg = $workers_sum->recvmsg()->data();
 	            for($msg){
 	                if(/^COMPLETED:(\d+)$/){
@@ -601,10 +603,10 @@ sub process {
 	        }
 	        # waiting for sender
 	        
-	        if ($_->{socket} == $return) {
+	        if ($pending_event->{socket} == $return) {
 	            debug('return msg received') if($::debug && $::debug > 1);
 	            my $msg = $return->recvmsg();
-	
+		
 	            if($msg->data() =~ /^ERROR: /){
 					$err = $msg->data();
 	                $sent_recs = -1;
@@ -617,9 +619,8 @@ sub process {
 	        }
 	        nanosleep NSECS_PER_MSEC;
 	        # total_recs is based on 0 ... X not -1 ... X
-	        debug('sent recs: '.$sent_recs);
+}	        debug('sent recs: '.$sent_recs);
 	        debug('total recs: '.$total_recs);
-        }
         
     } while($sent_recs != -1 && $sent_recs < $total_recs);
 
@@ -669,18 +670,18 @@ sub worker_routine {
         debug('polling...') if($::debug > 5);
         my @fired = $poller->poll();
         
-        for (@fired) {
+        for my $pending_event (@fired) {
         	
 	        debug('checking control...') if($::debug > 5);
 	        
-	        if ($_->{socket} == $ctrl) {
+	        if ($pending_event->{socket} == $ctrl) {
 	            my $msg = $ctrl->recvmsg()->data();
 	            debug('ctrl sig received: '.$msg) if($::debug > 5 && $msg eq 'WRK_DONE');
 	            $done = 1 if($msg eq 'WRK_DONE');
 	        }
 	        debug('checking event...') if($::debug > 4);
 	        
-	        if ($_->{socket} == $receiver) {
+	        if ($pending_event->{socket} == $receiver) {
 	            debug('receiving event...') if($::debug > 4);
 	            my $msg = $self->recv_as_json($receiver); #$receiver->recv_as('json');
 	            debug('processing message...') if($::debug > 4);
@@ -699,6 +700,7 @@ sub worker_routine {
 	
 	            $iodef = [ $iodef ] unless(ref($iodef) eq 'ARRAY');
 	            if($#{$iodef} > 0){
+	            	# TODO this code never seems to be reached
 	                debug('ADDING:'.($#{$iodef}));
 	                my $tosend = 'ADDED:'.($#{$iodef});
 	                $workers_sum->sendmsg($tosend, 0);
@@ -763,7 +765,7 @@ sub worker_routine {
 	            $self->send_as_json($sender, \@results);
 	            
 	            debug('message sent...') if($::debug > 3);
-	            $workers_sum->sendmsg('COMPLETED:1', 11);
+	            $workers_sum->sendmsg('COMPLETED:1', 0);
 	        }
         	# thread/zmq safety requirement
         	nanosleep NSECS_PER_MSEC;
@@ -828,10 +830,10 @@ sub sender_routine {
         debug('polling...') if($::debug > 4);
         my @fired = $poller->poll();
         
-        for (@fired) {
+        for my $pending_event (@fired) {
         	
 	        # we wanna check this one first, since it'll come in later
-	        if ($_->{socket} == $ctrl) {
+	        if ($pending_event->{socket} == $ctrl) {
 	            my $msg = $ctrl->recvmsg()->data();
 	            debug('ctrl sig received: '.$msg) if($::debug > 2);
 	            for($msg){
@@ -844,7 +846,7 @@ sub sender_routine {
 	        }
 	        # we need to move this out of the if/then incase we're waiting on a kill
 	        
-	        if ($_->{socket} == $sender) {
+	        if ($pending_event->{socket} == $sender) {
 	            debug('found event...') if($::debug > 2);
 	            my $msg = $self->recv_as_json($sender); #$sender->recv_as('json');
 	            
