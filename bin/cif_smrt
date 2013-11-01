@@ -124,7 +124,7 @@ Usage: perl $0 -C /home/cif/.cif -r $rules_dir/misc.cfg -f malwaredomainlist -T 
     -f  --feed:     feed name (eg: section header in the configuration file)
     -C  --config:   specify the cif config file (default: $config)
     -r  --rules:    specify the rules file to work with (eg: etc/malwaredomains.cfg)
-    -d  --debug:    debug 
+    -d# --debug:    debug level 0-9
     
 Advanced:
     -P  --post-processors:  resolve domains, resolve bgp, resolve urls, etc
@@ -148,8 +148,8 @@ Advanced:
                         
 Examples:
     $0 -C /home/cif/.cif -r $rules_dir/spyeyetracker.cfg -f binaries -T medium -P
-    $0 -C /home/cif/.cif -r $rules_dir/malwaredomains.cfg -f domains -T high -d -P
-    $0 -C /home/cif/.cif -r $rules_dir/misc.cfg -f spamhaus_drop -d -p ip,malware
+    $0 -C /home/cif/.cif -r $rules_dir/malwaredomains.cfg -f domains -T high -d 3 -P
+    $0 -C /home/cif/.cif -r $rules_dir/misc.cfg -f spamhaus_drop -d 3 -p ip,malware
     $0 -r $rules_dir/misc.cfg -f spamhaus_drop -d -P -z ip,malware
 EOF
 }
