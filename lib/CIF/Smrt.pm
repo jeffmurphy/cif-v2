@@ -575,7 +575,7 @@ sub process {
         debug('waiting on message...') if($::debug && $::debug > 1);
         
         debug('polling...') if($::debug > 5);
-        my @fired = $poller->poll();
+        my @fired = $poller->poll(1000);
         debug('found msg') if($::debug && $::debug > 1);
         
         for my $pending_event (@fired) {
@@ -668,7 +668,7 @@ sub worker_routine {
     my $recs = 0;
     while(!$done){
         debug('polling...') if($::debug > 5);
-        my @fired = $poller->poll();
+        my @fired = $poller->poll(1000);
         
         for my $pending_event (@fired) {
         	
@@ -828,7 +828,7 @@ sub sender_routine {
     my ($total_recs,$sent_recs) = (0,0);
     do {
         debug('polling...') if($::debug > 4);
-        my @fired = $poller->poll();
+        my @fired = $poller->poll(1000);
         
         for my $pending_event (@fired) {
         	
