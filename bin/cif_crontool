@@ -182,7 +182,7 @@ foreach(@crons){
     my $c_tool = $_->{'tool'} || $cron_tool;
     my $cmd = $c_tool.' -C '.$config.' -r '.$_->{'config'}.' -f '.$_->{'feed'};
     if($debug){
-        $cmd .= ' -d';
+        $cmd .= ' -d 1 ';
     }
     if($debug_level){
         $cmd .= ' -v '.$debug_level;
