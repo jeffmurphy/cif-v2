@@ -70,7 +70,7 @@ class Foundation(object):
         self.ipublish_reply = None
         
         self.defaultcallback = None
-        
+        self.defaultcallback_params = None
 
         
     def param(self, k):
@@ -91,8 +91,9 @@ class Foundation(object):
     def getdebug(self):
         return self.debug
     
-    def setdefaultcallback(self, cb):
+    def setdefaultcallback(self, cb, param_dict):
         self.defaultcallback = cb
+        self.defaultcallback_params = param_dict
         
     def ctrlsocket(self):
         # Socket to talk to cif-router
@@ -304,7 +305,7 @@ class Foundation(object):
                         del self.callback_registry[msgid]
                     else:
                         if self.defaultcallback != None:
-                            dcbthread = threading.Thread(target = self.defaultcallback, name="defaultcallback:" + str(control_command), args=(decoded_msg,))
+                            dcbthread = threading.Thread(target = self.defaultcallback, name="defaultcallback:" + str(control_command), args=(decoded_msg,self.defaultcallback_params))
                             dcbthread.start() # thread_tracking is done in the thread itself, not here
                         else:
                             if self.debug > 2:
