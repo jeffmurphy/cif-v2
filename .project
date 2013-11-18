@@ -2,6 +2,7 @@
 <projectDescription>
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	<name>cif-router</name>
 =======
 	<name>cif-db</name>
@@ -9,11 +10,17 @@
 =======
 	<name>cif-smrt-perl</name>
 >>>>>>> smrt/master
+=======
+	<name>cif-ui</name>
+>>>>>>> ui/master
 	<comment></comment>
 	<projects>
 	</projects>
 	<buildSpec>
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ui/master
 		<buildCommand>
 			<name>org.python.pydev.PyDevBuilder</name>
 			<arguments>
@@ -23,10 +30,13 @@
 	<natures>
 		<nature>com.aptana.projects.webnature</nature>
 		<nature>org.python.pydev.pythonNature</nature>
+<<<<<<< HEAD
 =======
 	</buildSpec>
 	<natures>
 		<nature>com.aptana.projects.webnature</nature>
 >>>>>>> smrt/master
+=======
+>>>>>>> ui/master
 	</natures>
 </projectDescription>
