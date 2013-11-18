@@ -1,0 +1,58 @@
+An explanation on the version field
+-----------------------------------
+
+The message definitions include a field like this:
+
+    optional float version      = 1 [default = 20120622.00];
+
+The intent of the field is to allow for the rejection of
+messages that may have altered enumerations or required fields.
+
+The integer portion indicates that one of those has changed:
+a enumeration has be altered, or a required field has been 
+added/removed.
+
+Generally we'll avoid the 'required' keyword as much as possible,
+but enumerations will likely change over time. This would
+result in the integer portion of the version being changed
+to reflect the date on which the new message format was 
+approved.
+
+The decimal portion just indicates that optional fields have
+changed. This should have minimal to no effect on clients
+since optional fields always have a default (even if 'default'
+wasn't explicitly stated in the IDL)
+
+Finally, we exploit the definition of optional fields and
+default values to implement the version. "The default value simply 
+defines what is returned by the field's getter if no value has explicitly 
+been set." http://code.google.com/p/protobuf/issues/detail?id=312#c3
+
+What this means is that if we send a message to a remote end and
+do not set the version field, the remote end will fill it in with 
+whatever version is specified in their (local) IDL. We don't want this.
+What we want is the version field to contain the value specified in 
+/our/ local IDL. 
+
+To do this we basically say:
+
+msg.version = msg.version
+
+Thereby setting the version to the default returned by our local 
+getter. We then send the message off. The remote client does something
+like:
+
+1  msg = recv().deserialize()
+2  junk = new Message()
+3  if int(msg.version) != int(junk.version) then
+4    die_ohnoes();
+5  endif
+  
+Line 1 receives an incoming message and deserializes it. Line 2 creates
+a junk message. Line 3 tests the integer portion of the received message's
+version against the integer portion of the (default) version returned by the
+getter in our local IDL. If they don't match up then onnoes, the remote's
+enums and/or required fields aren't the same as ours and we should avoid
+talking to them.
+
+

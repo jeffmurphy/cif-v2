@@ -1,0 +1,466 @@
+package CIF.IDMEF;
+
+
+message UnspecifiedType
+{
+	required string baseObjectType = 1;
+	required bytes object = 2;
+}
+
+message Confidence
+{
+	enum confidence_rating
+	{
+		confidence_rating_high = 1;
+		confidence_rating_low = 2;
+		confidence_rating_medium = 3;
+		confidence_rating_numeric = 4;
+	}
+	required confidence_rating rating = 1;
+}
+
+message Checksum
+{
+	required string value = 1;
+	required string key = 2;
+	enum checksum_algorithm
+	{
+		checksum_algorithm_CRC_32 = 1;
+		checksum_algorithm_Gost = 2;
+		checksum_algorithm_Haval = 3;
+		checksum_algorithm_MD4 = 4;
+		checksum_algorithm_MD5 = 5;
+		checksum_algorithm_SHA1 = 6;
+		checksum_algorithm_SHA2_256 = 7;
+		checksum_algorithm_SHA2_384 = 8;
+		checksum_algorithm_SHA2_512 = 9;
+		checksum_algorithm_Tiger = 10;
+	}
+	required checksum_algorithm algorithm = 3;
+}
+
+message SNMPService
+{
+	required string oid = 1;
+	required int32 messageProcessingModel = 2;
+	required int32 securityModel = 3;
+	required string securityName = 4;
+	required int32 securityLevel = 5;
+	required string contextName = 6;
+	required string contextEngineID = 7;
+	required string command = 8;
+}
+
+message OverflowAlert
+{
+	required string program = 1;
+	required string size = 2;
+	required UnspecifiedType buffer = 3;
+}
+
+message TimeWithNtpstamp
+{
+	required string ntpstamp = 1;
+}
+
+message Action
+{
+	enum action_category
+	{
+		action_category_block_installed = 1;
+		action_category_notification_sent = 2;
+		action_category_other = 3;
+		action_category_taken_offline = 4;
+	}
+	optional action_category category = 1;
+}
+
+message Process
+{
+	required string name = 1;
+	required int32 pid = 2;
+	required string path = 3;
+	repeated string arg = 4;
+	repeated string env = 5;
+	optional string ident = 6;
+}
+
+message WebService
+{
+	required UnspecifiedType url = 1;
+	required string cgi = 2;
+	required string http_method = 3;
+	repeated string arg = 4;
+}
+
+message Impact
+{
+	enum impact_severity
+	{
+		impact_severity_high = 1;
+		impact_severity_info = 2;
+		impact_severity_low = 3;
+		impact_severity_medium = 4;
+	}
+	optional impact_severity severity = 1;
+	enum impact_completion
+	{
+		impact_completion_failed = 1;
+		impact_completion_succeeded = 2;
+	}
+	optional impact_completion completion = 2;
+	enum impact_type
+	{
+		impact_type_admin = 1;
+		impact_type_dos = 2;
+		impact_type_file = 3;
+		impact_type_other = 4;
+		impact_type_recon = 5;
+		impact_type_user = 6;
+	}
+	optional impact_type type = 3;
+}
+
+message Permission
+{
+	enum file_permission
+	{
+		file_permission_changePermissions = 1;
+		file_permission_delete = 2;
+		file_permission_execute = 3;
+		file_permission_executeAs = 4;
+		file_permission_noAccess = 5;
+		file_permission_read = 6;
+		file_permission_search = 7;
+		file_permission_takeOwnership = 8;
+		file_permission_write = 9;
+	}
+	required file_permission perms = 1;
+}
+
+message Inode
+{
+	required string change_time = 1;
+	required string number = 2;
+	required string major_device = 3;
+	required string minor_device = 4;
+	required string c_major_device = 5;
+	required string c_minor_device = 6;
+}
+
+message UserId
+{
+	required string name = 1;
+	required int32 number = 2;
+	enum id_type
+	{
+		id_type_current_group = 1;
+		id_type_current_user = 2;
+		id_type_group_privs = 3;
+		id_type_original_user = 4;
+		id_type_other_privs = 5;
+		id_type_target_user = 6;
+		id_type_user_privs = 7;
+	}
+	optional id_type type = 3;
+	optional string tty = 4;
+	optional string ident = 5;
+}
+
+message xmltext
+{
+}
+
+message AdditionalData
+{
+	required bool _boolean = 1;
+	required bytes _byte = 2;
+	required string character = 3;
+	required int64 date_time = 4;
+	required int32 _integer = 5;
+	required string ntpstamp = 6;
+	required UnspecifiedType portlist = 7;
+	required double real = 8;
+	required string _string = 9;
+	required UnspecifiedType byte_string = 10;
+	required xmltext xml = 11;
+	enum additionaldata_type
+	{
+		additionaldata_type_boolean = 1;
+		additionaldata_type_byte = 2;
+		additionaldata_type_byte_string = 3;
+		additionaldata_type_character = 4;
+		additionaldata_type_date_time = 5;
+		additionaldata_type_integer = 6;
+		additionaldata_type_ntpstamp = 7;
+		additionaldata_type_portlist = 8;
+		additionaldata_type_real = 9;
+		additionaldata_type_string = 10;
+		additionaldata_type_xml = 11;
+	}
+	optional additionaldata_type type = 12;
+	optional string meaning = 13;
+}
+
+message Alertident
+{
+	optional string analyzerid = 1;
+}
+
+message Address
+{
+	required string address = 1;
+	required string netmask = 2;
+	optional string vlan_num = 3;
+	optional string ident = 4;
+	optional string vlan_name = 5;
+	enum address_category
+	{
+		address_category_atm = 1;
+		address_category_e_mail = 2;
+		address_category_ipv4_addr = 3;
+		address_category_ipv4_addr_hex = 4;
+		address_category_ipv4_net = 5;
+		address_category_ipv4_net_mask = 6;
+		address_category_ipv6_addr = 7;
+		address_category_ipv6_addr_hex = 8;
+		address_category_ipv6_net = 9;
+		address_category_ipv6_net_mask = 10;
+		address_category_lotus_notes = 11;
+		address_category_mac = 12;
+		address_category_sna = 13;
+		address_category_unknown = 14;
+		address_category_vm = 15;
+	}
+	optional address_category category = 6;
+}
+
+message Reference
+{
+	required string name = 1;
+	required string url = 2;
+	enum reference_origin
+	{
+		reference_origin_bugtraqid = 1;
+		reference_origin_cve = 2;
+		reference_origin_osvdb = 3;
+		reference_origin_unknown = 4;
+		reference_origin_user_specific = 5;
+		reference_origin_vendor_specific = 6;
+	}
+	optional reference_origin origin = 3;
+	optional string meaning = 4;
+}
+
+message Assessment
+{
+	required Impact _Impact = 1;
+	repeated Action _Action = 2;
+	required Confidence _Confidence = 3;
+}
+
+message User
+{
+	repeated UserId _UserId = 1;
+	optional string ident = 2;
+	enum user_category
+	{
+		user_category_application = 1;
+		user_category_os_device = 2;
+		user_category_unknown = 3;
+	}
+	optional user_category category = 3;
+}
+
+message Service
+{
+	required string name = 1;
+	required int32 port = 2;
+	required UnspecifiedType portlist = 3;
+	required string protocol = 4;
+	required SNMPService _SNMPService = 5;
+	required WebService _WebService = 6;
+	optional int32 ip_version = 7;
+	optional string ident = 8;
+	optional int32 iana_protocol_number = 9;
+	optional string iana_protocol_name = 10;
+}
+
+message ToolAlert
+{
+	required string name = 1;
+	required string command = 2;
+	repeated Alertident alertident = 3;
+}
+
+message CorrelationAlert
+{
+	required string name = 1;
+	repeated Alertident alertident = 2;
+}
+
+message Classification
+{
+	repeated Reference _Reference = 1;
+	required string text = 2;
+	optional string ident = 3;
+}
+
+message FileAccess
+{
+	required UserId _UserId = 1;
+	repeated Permission permission = 2;
+}
+
+message Node
+{
+	required string location = 1;
+	required string name = 2;
+	required Address _Address = 3;
+	optional string ident = 4;
+	enum node_category
+	{
+		node_category_ads = 1;
+		node_category_afs = 2;
+		node_category_coda = 3;
+		node_category_dfs = 4;
+		node_category_dns = 5;
+		node_category_hosts = 6;
+		node_category_kerberos = 7;
+		node_category_nds = 8;
+		node_category_nis = 9;
+		node_category_nisplus = 10;
+		node_category_nt = 11;
+		node_category_unknown = 12;
+		node_category_wfw = 13;
+	}
+	optional node_category category = 5;
+}
+
+message Analyzer
+{
+	required Node _Node = 1;
+	required Process _Process = 2;
+	required bytes Analyzer = 3;
+	optional string version = 4;
+	optional string ostype = 5;
+	optional string name = 6;
+	optional string analyzerid = 7;
+	optional string model = 8;
+	optional string manufacturer = 9;
+	optional string _class = 10;
+	optional string osversion = 11;
+}
+
+message Heartbeat
+{
+	required Analyzer _Analyzer = 1;
+	required TimeWithNtpstamp CreateTime = 2;
+	required int32 HeartbeatInterval = 3;
+	required TimeWithNtpstamp AnalyzerTime = 4;
+	repeated AdditionalData _AdditionalData = 5;
+	optional string messageid = 6;
+}
+
+message Source
+{
+	required Node _Node = 1;
+	required User _User = 2;
+	required Process _Process = 3;
+	required Service _Service = 4;
+	optional string ident = 5;
+	enum yes_no_type
+	{
+		yes_no_type_no = 1;
+		yes_no_type_unknown = 2;
+		yes_no_type_yes = 3;
+	}
+	optional yes_no_type spoofed = 6;
+	optional string _interface = 7;
+}
+
+message File
+{
+	required string name = 1;
+	required string path = 2;
+	required int64 create_time = 3;
+	required int64 modify_time = 4;
+	required int64 access_time = 5;
+	required int32 data_size = 6;
+	required int32 disk_size = 7;
+	repeated FileAccess _FileAccess = 8;
+	repeated Linkage _Linkage = 9;
+	required Inode _Inode = 10;
+	repeated Checksum _Checksum = 11;
+	required string fstype = 12;
+	optional string ident = 13;
+	optional string file_type = 14;
+	enum file_category
+	{
+		file_category_current = 1;
+		file_category_original = 2;
+	}
+	required file_category category = 15;
+}
+
+message Linkage
+{
+	required string name = 1;
+	required string path = 2;
+	required File _File = 3;
+	enum linkage_category
+	{
+		linkage_category_hard_link = 1;
+		linkage_category_mount_point = 2;
+		linkage_category_reparse_point = 3;
+		linkage_category_shortcut = 4;
+		linkage_category_stream = 5;
+		linkage_category_symbolic_link = 6;
+	}
+	required linkage_category category = 4;
+}
+
+message Alert
+{
+	required Analyzer _Analyzer = 1;
+	required TimeWithNtpstamp CreateTime = 2;
+	required TimeWithNtpstamp DetectTime = 3;
+	required TimeWithNtpstamp AnalyzerTime = 4;
+	repeated Source _Source = 5;
+	repeated Target _Target = 6;
+	required Classification _Classification = 7;
+	required Assessment _Assessment = 8;
+	required ToolAlert _ToolAlert = 9;
+	required OverflowAlert _OverflowAlert = 10;
+	required CorrelationAlert _CorrelationAlert = 11;
+	repeated AdditionalData _AdditionalData = 12;
+	optional string messageid = 13;
+}
+
+message IDMEF_Message
+{
+	// version SHALL be a float and always the first field
+	optional double version = 1 [default = 20120628];
+	required Alert _Alert = 2;
+	required Heartbeat _Heartbeat = 3;
+}
+
+message Target
+{
+	required Node _Node = 1;
+	required User _User = 2;
+	required Process _Process = 3;
+	required Service _Service = 4;
+	repeated File _File = 5;
+	enum yes_no_type
+	{
+		yes_no_type_no = 1;
+		yes_no_type_unknown = 2;
+		yes_no_type_yes = 3;
+	}
+	optional yes_no_type decoy = 6;
+	optional string ident = 7;
+	optional string _interface = 8;
+}
+
+

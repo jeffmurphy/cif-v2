@@ -1,0 +1,202 @@
+package CIF.msg;
+
+message QueryRequest {
+        required string query   = 1;
+        optional bool nolog     = 2;
+}
+
+message QueryRequestList {
+        optional int32 limit        = 1;
+        optional int32 confidence   = 2;
+        repeated QueryRequest query = 3;
+        optional string description = 4;
+        optional bool feed          = 5 [ default = false ];
+}
+ 
+message QueryResponse {
+    // pulled from RFC 5070 -- IODEF
+    enum RestrictionType {
+        restriction_type_default        = 1;
+        restriction_type_need_to_know   = 2;
+        restriction_type_private        = 3;
+        restriction_type_public         = 4;
+    }
+    
+    message MapType {
+        required string key = 1;
+        required string value = 2;
+    }
+
+    // guid should evolve to the ContactType from IODEF
+    optional string guid                    = 1;
+
+    // TODO: evolve this to Assessment Class
+    optional int32 confidence               = 2;
+
+    // TODO: MLStringType? or even Assessment?
+    // combine with confidence class
+    required string description             = 3;
+    required string ReportTime              = 4;
+    optional RestrictionType restriction    = 5;
+    repeated MapType restriction_map        = 6;
+    repeated MapType group_map              = 7;
+
+    // packed documents of type specified in baseObjectType (eg IODEF documents)
+    repeated string baseObjectType          = 8;
+    repeated bytes data                     = 9;
+}
+
+
+message RegisterResponse {
+	required int32 REQport = 1;
+	required int32 PUBport = 2;
+}
+	
+message IPublishRequest {
+	required string ipaddress = 1;
+	required int32 port = 2;
+}
+	
+message ListClientsResponse {
+	repeated string client = 1;
+	repeated int32 connectTimestamp = 2;
+}
+
+message PingRequest {
+	optional double ts = 1;
+	optional int32  pingseq = 2;
+}
+
+message ListThreadsResponse {
+	repeated string id = 1;
+	repeated string user = 2;
+	repeated string host = 3;
+	repeated string command = 4;
+	repeated int32 runtime = 5; 
+	repeated string state = 6; 
+	repeated string info = 7;
+}
+
+// supported ("indexed") requests are:
+//   by-apikey
+//   by-alias
+//   by-group
+// in that order, if multiple are filled in, the first one
+// from the above list is used.
+
+message APIKeyRequest {
+        optional string apikey = 1;
+        optional string alias = 2;
+        optional bool restrictedAccess = 3;
+        optional bool writeAccess = 4;
+        optional string description = 5;
+        optional int32 expires = 6; // timestamp,UTC 0=never
+        optional bool revoked = 7;
+        repeated APIKeyGroup groupsList = 8;
+        repeated string restrictionsList = 9;
+        optional string parent = 10;
+}
+
+message APIKeyGroup {
+	optional string groupname = 1;
+	optional string groupid = 2;
+	optional bool default = 3;
+}
+
+message APIKeyResponse {
+	optional string apikey = 1;
+	optional string alias = 2;
+	optional bool restrictedAccess = 3;
+	optional bool writeAccess = 4;
+	optional string description = 5;
+	optional int32 expires = 6; // timestamp,UTC 0=never 
+	optional bool revoked = 7;
+	repeated APIKeyGroup groupsList = 8;
+	repeated string addedByList = 9;
+	repeated string restrictionsList = 10;
+	optional string parent = 11;
+	optional int32 created = 12;
+}
+
+message StatsResponse {
+	enum StatsType {
+		ROUTER = 1;
+		DB     = 2;
+		OTHER  = 3;
+	}
+	
+	optional StatsType statsType = 1;
+	optional string stats = 2; // json packed
+}
+
+
+message ControlType {
+    enum StatusType {
+        SUCCESS         = 1;
+        FAILED          = 2;
+        UNAUTHORIZED    = 3;
+        DUPLICATE       = 4;
+    }
+    
+    enum MsgType {
+        COMMAND     = 1;
+        REPLY       = 2;
+    }
+    
+    // these messages are used for communication between the CIF
+    // components. 
+    
+    enum CommandType {
+    	REGISTER    = 1;
+    	UNREGISTER  = 2;
+    	IPUBLISH    = 3;
+    	LISTCLIENTS = 4;
+    	SHUTDOWN    = 5;
+    	STATS       = 6;
+    	PING        = 7;
+    	PAUSE       = 8;
+    	RESUME      = 9;
+    	RESTART     = 10;
+    	
+    	APIKEY_ADD     = 101;
+    	APIKEY_UPDATE  = 102;
+    	APIKEY_DEL     = 103;
+    	APIKEY_LIST    = 104;
+    	APIKEY_GET     = 105;
+    	
+    	APIKEY_GROUPS_ADD    = 106;
+    	APIKEY_GROUPS_UPDATE = 107;
+    	APIKEY_GROUPS_DEL    = 108;
+    	APIKEY_GROUPS_LIST   = 109;
+    	APIKEY_GROUPS_GET    = 110;
+    	
+    	CIF_QUERY_REQUEST    = 201;
+    	CIF_QUERY_RESPONSE   = 202;
+    	
+    	THREADS_LIST         = 300;
+    }
+    
+    optional double version      = 1 [default = 20131005.00];
+    optional bytes seq           = 2; // used to match commands to replies, must be preserved in replies 
+    optional string dst          = 3;
+    optional string src          = 4;
+    optional StatusType status   = 5;
+    optional string  statusMsg   = 6;
+    optional MsgType type        = 7;
+    optional CommandType command = 8;
+    
+    optional string apikey       = 9;
+    
+    optional RegisterResponse    registerResponse    = 10;
+    optional IPublishRequest     iPublishRequest     = 11;
+    optional ListClientsResponse listClientsResponse = 12;
+    optional PingRequest         pingRequest         = 13;
+    optional APIKeyRequest       apiKeyRequest       = 14;
+    repeated APIKeyResponse      apiKeyResponseList  = 15;
+    optional QueryRequestList    queryRequestList    = 16;
+    repeated QueryResponse       queryResponseList   = 17;
+    optional ListThreadsResponse listThreadsResponse = 18;
+    optional StatsResponse       statsResponse       = 19;
+}
+
+

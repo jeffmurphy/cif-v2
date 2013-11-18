@@ -1,0 +1,69 @@
+package CIF.msg;
+
+
+message MessageType {
+    enum StatusType {
+        SUCCESS         = 1;
+        FAILED          = 2;
+        UNAUTHORIZED    = 3;
+    }
+    
+    enum MsgType {
+        QUERY       = 1;
+        SUBMISSION  = 2;
+        REPLY       = 4;
+    }
+
+    message QueryStruct {
+        required string query   = 1;
+        optional bool nolog     = 2;
+    }
+    
+    message QueryRequest {
+        optional int32 limit        = 1;
+        optional int32 confidence   = 2;
+        repeated QueryStruct query  = 3;
+        optional string description = 4;
+        optional bool feed          = 5 [ default = false ];
+    }
+        
+    message SubmissionRequest {
+        optional string baseObjectType = 1; // eg "RFC5070_IODEF_v1"
+        optional bytes data = 2;
+    }
+
+	message Reply {
+		optional string baseObjectType = 1; // eg "RFC5070_IODEF_v1", "CIF.msg.FeedType"
+		optional bytes data            = 2;
+	}
+	
+	// this is the version of this message format. if you alter/add
+	// 'required' fields or enum values, then you must set the major version to 
+	// be the date on which the new format was approved by the Ministry of
+	// Protocols. If you make a change to an optional field, you can 
+	// increment the minor version (although it's not strictly necessary)
+	
+	// see "Extending" at the bottom of https://developers.google.com/protocol-buffers/docs/pythontutorial
+	
+	// the version format is YYYYMMDD.##
+	// note, temporarily droppeding the .## portion from this file so the perl module will build
+	// see https://github.com/collectiveintel/google-protocolbuffers-perl/issues/1
+	
+	// the version field SHALL always be the first field in the message "= 1"
+    optional double version      = 1 [default = 20120927];
+
+    optional bytes  seq         = 2; // used to match queries with replies. must be preserved in replies
+
+    optional string apikey      = 3;
+    optional string guid        = 4;
+
+    required MsgType type       = 5;
+    optional StatusType status  = 6;
+
+    repeated QueryRequest queryRequest           = 7;
+    repeated SubmissionRequest submissionRequest = 8;
+    repeated Reply reply                         = 9;
+    
+}
+
+

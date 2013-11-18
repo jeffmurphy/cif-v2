@@ -1,6 +1,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 *.pyc
 =======
 *.class
@@ -10,6 +11,8 @@
 =======
 =======
 >>>>>>> libcif-dbi/master
+=======
+>>>>>>> protocol/master
 aclocal.m4
 autom4te.cache
 build
@@ -58,6 +61,11 @@ src/pb-perl/lib/CIF/Msg/Control.pm
 src/pb-perl/lib/mmdef_pb2.pm
 src/pb-perl/lib/CIF/Msg/Profile.pm
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> libcif/master
 =======
 >>>>>>> libcif-dbi/master
+=======
+src/pb-perl/lib/CIF/_Msg.pm
+src/pb-perl/lib/CIF/Msg/Feed.pm
+>>>>>>> protocol/master
