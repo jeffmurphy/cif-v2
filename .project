@@ -3,6 +3,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	<name>cif-router</name>
 =======
 	<name>cif-db</name>
@@ -13,10 +14,14 @@
 =======
 	<name>cif-ui</name>
 >>>>>>> ui/master
+=======
+	<name>libcif-dbi</name>
+>>>>>>> libcif-dbi/master
 	<comment></comment>
 	<projects>
 	</projects>
 	<buildSpec>
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -38,5 +43,10 @@
 >>>>>>> smrt/master
 =======
 >>>>>>> ui/master
+=======
+	</buildSpec>
+	<natures>
+		<nature>com.aptana.projects.webnature</nature>
+>>>>>>> libcif-dbi/master
 	</natures>
 </projectDescription>
