@@ -1,1 +1,7 @@
+<<<<<<< HEAD
 *.pyc
+=======
+*.class
+*.pyc
+*.o
+>>>>>>> db/master

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
+<<<<<<< HEAD
 	<name>cif-router</name>
+=======
+	<name>cif-db</name>
+>>>>>>> db/master
 	<comment></comment>
 	<projects>
 	</projects>
