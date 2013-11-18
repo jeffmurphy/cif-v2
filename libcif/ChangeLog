@@ -1,0 +1,18 @@
+Revision history for libcif
+
+0.99.06 2012-11
+    - added log::dispatch init_logging functions
+
+0.99.05 2012-10-01
+    - implemented cif-protocol perl bindings here
+    - merged cif client libs here
+    - added net-ssleay 1.43 as a dep (fixes threading)
+    - refactored
+    - misc bugfixes
+
+0.99.04 2012-07-31
+    - bugfixes
+
+0.99.01 2012-04-27
+    - initial release
+    - contains old CIF::Utils functions (generate_uuid, etc)

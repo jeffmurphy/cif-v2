@@ -1,7 +1,57 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 *.pyc
 =======
 *.class
 *.pyc
 *.o
 >>>>>>> db/master
+=======
+aclocal.m4
+autom4te.cache
+build
+config.log
+config.status
+configure
+Makefile
+Makefile.in
+.project
+.pydevproject
+src/ICSG-v1_7-2007.proto
+src/ICSG-v1_7-2007.thrift
+src/MAEC-v2.proto
+src/MAEC-v2.thrift
+src/Makefile
+src/pb-cpp/gen-cpp
+src/pb-java/gen-java
+src/pb-perl/lib/CIF/Msg/Feed.pm
+src/pb-perl/lib/CIF/_Msg.pm
+src/pb-perl/blib
+src/pb-perl/inc
+src/pb-perl/META.yml
+src/pb-perl/MYMETA.json
+src/pb-perl/MYMETA.yml
+src/pb-perl/pm_to_blib
+src/pb-python/gen-py/*.py
+*.pyc
+src/RFC4765-IDMEF-2007.proto
+src/RFC4765-IDMEF-2007.thrift
+src/RFC5070-IODEF-v1.proto
+src/RFC5070-IODEF-v1.thrift
+src/thrift-c/gen-c_glib
+src/thrift-cpp/gen-cpp
+src/thrift-java/gen-java
+src/thrift-perl/gen-perl
+src/thrift-python/gen-py
+src/pb-perl/lib/CIF/Msg/Feed.pm
+src/pb-perl/lib/CIF/_Msg.pm
+src/pb-perl/lib/ICSG_v1_7_2007_pb2.pm
+src/pb-perl/lib/MAEC_v2_pb2.pm
+src/pb-perl/lib/RFC4765_IDMEF_2007_pb2.pm
+src/pb-perl/lib/RFC5070_IODEF_v1_pb2.pm
+src/pb-perl/lib/CIF/_Msg.pm
+src/pb-perl/lib/CIF/Msg/Control.pm
+src/pb-perl/lib/CIF/Msg/Control.pm
+src/pb-perl/lib/mmdef_pb2.pm
+src/pb-perl/lib/CIF/Msg/Profile.pm
+>>>>>>> libcif/master
