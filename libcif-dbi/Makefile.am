@@ -83,15 +83,15 @@ purgedb:
 	$(PSQL) -U $(DB_DBA) -h $(DB_HOST) -p $(DB_PORT) -d $(DB_DATABASE) < "schemas/pg_purge.sql"
 
 clean:
-	rm Makefile
 	rm config.log
-	rm config.status
 
 realclean: clean
 	rm Makefile.in
 	rm configure
 	rm aclocal.m4
 	rm -fr autom4te.cache
+	rm config.status
+	rm Makefile
 
 reconf:
 	autoreconf -vf

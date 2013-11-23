@@ -7,7 +7,7 @@ AM_INIT_AUTOMAKE
 
 # setup
 
-AC_CONFIG_SUBDIRS([libcif libcif-dbi router smrt ui protocol])
+AC_CONFIG_SUBDIRS([libcif libcif-dbi router smrt ui protocol db])
 AC_CONFIG_FILES([
     Makefile
 ])

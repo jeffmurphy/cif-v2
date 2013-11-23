@@ -59,15 +59,14 @@ bin-install:
     done
 
 clean:
-	rm Makefile
-	rm config.log
-	rm config.status
+	rm -f *~
 
 realclean: clean
 	rm Makefile.in
-	rm configure
+	rm configure config.log config.status
 	rm aclocal.m4
 	rm -fr autom4te.cache
+	rm Makefile
 
 reconf:
 	autoreconf -vf

@@ -1,8 +1,8 @@
-SUBDIRS = libcif libcif-dbi router smrt ui protocol
+SUBDIRS = libcif libcif-dbi router smrt ui protocol db
 EXTRA_DIST = sbin
 
 ME=cif-v2
-BUILD=$(shell git describe --tags)
+BUILD=2.0
 SNAPSHOT=$(ME)-$(BUILD)
 
 all: default
@@ -62,9 +62,7 @@ clean:
 	@for dir in libcif libcif-dbi smrt ui router db ; do \
 		(cd $$dir && make clean) \
 	done
-	rm Makefile
 	rm config.log
-	rm config.status
 
 realclean: clean
 	@for dir in libcif libcif-dbi smrt ui router db ; do \
@@ -74,6 +72,7 @@ realclean: clean
 	rm configure
 	rm aclocal.m4
 	rm -fr autom4te.cache
+	rm Makefile
 
 reconf:
 	autoreconf -vf
