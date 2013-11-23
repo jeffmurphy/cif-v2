@@ -59,8 +59,8 @@ AC_ARG_WITH(db-type,
         AC_HELP_STRING([--with-db-type=TYPE],
                    [sort of database CIF will use (default: HBase) (HBase DynamoDB)]),
             DB_TYPE=$withval,
-            DB_TYPE=HBase)
-if test "$DB_TYPE" != 'HBase' -o "$DB_TYPE" != 'DynamoDB' ; then
+            DB_TYPE='HBase')
+if test "$DB_TYPE" != 'HBase' -a "$DB_TYPE" != 'DynamoDB' ; then
     AC_MSG_ERROR([valid db type: HBase or DynamoDB])
 fi
 AC_SUBST(DB_TYPE)
