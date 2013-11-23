@@ -1,6 +1,6 @@
 autoreconf -vf
-automake --add-missing
+automake --copy --add-missing
+chmod 755 configure
 ./configure
 make
-perl sbin/gen_protocol_bindings.pl
 make dist

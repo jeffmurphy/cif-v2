@@ -87,11 +87,11 @@ clean:
 	rm config.log
 	rm config.status
 
-realclean:
-	clean
+realclean: clean
 	rm Makefile.in
 	rm configure
 	rm aclocal.m4
+	rm -fr autom4te.cache
 
 reconf:
 	autoreconf -vf

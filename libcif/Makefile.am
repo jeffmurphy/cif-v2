@@ -1,7 +1,7 @@
 EXTRA_DIST = lib sbin bin
 
 ME=libcif
-BUILD=$(shell git describe --tags)
+BUILD=2.0
 SNAPSHOT=$(ME)-$(BUILD)
 
 all: default
@@ -46,11 +46,11 @@ clean:
 	rm config.log
 	rm config.status
 
-realclean:
-	clean
+realclean: clean
 	rm Makefile.in
 	rm configure
 	rm aclocal.m4
+	rm -fr autom4te.cache
  
 bindings:
 	$(PERL) ./sbin/gen_protocol_bindings.pl

@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.64])
-AC_INIT(cif-smrt, m4_esyscmd_s([git describe --tags]), [ci-framework@googlegroups.com])
+AC_PREREQ([2.63])
+AC_INIT(cif-smrt, [2.0], [ci-framework@googlegroups.com])
 AM_INIT_AUTOMAKE
 
 # Checks for programs.

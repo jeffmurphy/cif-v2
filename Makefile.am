@@ -59,15 +59,21 @@ testdeps:
 	done
 
 clean:
+	@for dir in libcif libcif-dbi smrt ui router db ; do \
+		(cd $$dir && make clean) \
+	done
         rm Makefile
         rm config.log
         rm config.status
 
-realclean:
-        clean
+realclean: clean
+	@for dir in libcif libcif-dbi smrt ui router db ; do \
+		(cd $$dir && make realclean) \
+	done
         rm Makefile.in
         rm configure
         rm aclocal.m4
+	rm -fr autom4te.cache
 
 reconf:
         autoreconf -vf
