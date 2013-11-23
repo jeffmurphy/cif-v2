@@ -135,3 +135,5 @@ clean:
 	rm -fr pb-cpp/gen-*     pb-python/gen-py/*.py pb-python/gen-py/*.pyc     pb-java/gen-* \
 	       thrift-cpp/gen-* thrift-python/gen-* thrift-perl/gen-* thrift-java/gen-* thrift-c/gen-*
 	
+distclean: clean
+	rm Makefile
