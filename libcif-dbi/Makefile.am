@@ -1,7 +1,7 @@
 EXTRA_DIST = lib bin sbin schemas
 
 ME=libcif-dbi
-BUILD=$(shell git describe --tags)
+BUILD=2.0
 SNAPSHOT=$(ME)-$(BUILD)
 
 all: default

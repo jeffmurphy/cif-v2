@@ -7,10 +7,6 @@ AM_INIT_AUTOMAKE
 
 # setup
 
-AC_CONFIG_SUBDIRS([libcif libcif-dbi router smrt ui protocol db])
-AC_CONFIG_FILES([
-    Makefile
-])
 
 # Checks for programs.
 AC_ARG_VAR([PERL],[Perl interpreter command])
@@ -81,4 +77,5 @@ AC_ARG_WITH(db-port,
             DB_PORT=5432)
 AC_SUBST(DB_PORT)
 
+AC_CONFIG_FILES([Makefile libcif/Makefile libcif-dbi/Makefile router/Makefile smrt/Makefile ui/Makefile protocol/Makefile db/Makefile])
 AC_OUTPUT
