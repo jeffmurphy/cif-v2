@@ -63,9 +63,6 @@ clean:
 
 realclean: clean
 	rm Makefile.in
-	rm configure config.log config.status
-	rm aclocal.m4
-	rm -fr autom4te.cache
 	rm Makefile
 
 reconf:

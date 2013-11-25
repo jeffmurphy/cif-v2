@@ -42,19 +42,12 @@ bin-install:
     done
 
 clean:
-	rm config.log
+	rm -f *~
 
 realclean: clean
 	rm Makefile.in
-	rm configure
-	rm aclocal.m4
-	rm -fr autom4te.cache
-	rm config.status
 	rm Makefile
  
-bindings:
-	$(PERL) ./sbin/gen_protocol_bindings.pl
-
 reconf:
 	autoreconf -vf
 

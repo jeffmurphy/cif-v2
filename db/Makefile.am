@@ -1,7 +1,4 @@
-SUBDIRS = src
 docdir = doc
-dist_doc_DATA = README
-
 
 clean-local:
 	rm -f *~

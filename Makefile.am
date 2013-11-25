@@ -5,10 +5,7 @@ ME=cif-v2
 BUILD=2.0
 SNAPSHOT=$(ME)-$(BUILD)
 
-all: default
-
-default:
-	$(PERL) libcif/sbin/gen_protocol_bindings.pl
+all: 
 
 fixperms:
 	chmod 0755 $(prefix)
@@ -62,13 +59,13 @@ clean:
 	@for dir in libcif libcif-dbi smrt ui router db ; do \
 		(cd $$dir && make clean) \
 	done
-	rm config.log
+	rm -f *~
 
 realclean: clean
 	@for dir in libcif libcif-dbi smrt ui router db ; do \
 		(cd $$dir && make realclean) \
 	done
-	rm Makefile.in
+	rm -f Makefile.in config.log config.status
 	rm configure
 	rm aclocal.m4
 	rm -fr autom4te.cache
