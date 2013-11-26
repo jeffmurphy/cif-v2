@@ -18,5 +18,3 @@ clean:
 
 realclean: clean
 
-snapshot:
-	git archive --format=tar --prefix=$(SNAPSHOT)/ $(SNAPSHOT) | gzip > ../$(SNAPSHOT).tar.gz
