@@ -17,7 +17,7 @@ import re
 
 # adjust to match your $PREFIX if you specified one
 # default PREFIX = /usr/local
-sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
+sys.path.append('/opt/cif/lib/cif-protocol/pb-python/gen-py')
 
 def usage():
     print "db-fsck [-v] [-f] [-H host] [-D 0-9] [-h]\n\t-v verbose\n\t-f fix (default: report dont fix)\n\t-H hbase host\n\t-D debug level\n\t-h this message"

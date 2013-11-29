@@ -37,7 +37,7 @@ import socket
 import fileinput
 from texttable import Texttable
 
-sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
+sys.path.append('/opt/cif/lib/cif-protocol/pb-python/gen-py')
 import msg_pb2
 import feed_pb2
 import RFC5070_IODEF_v1_pb2
@@ -45,7 +45,7 @@ import MAEC_v2_pb2
 import control_pb2
 import cifsupport
 
-sys.path.append('../../libcif/lib')
+sys.path.append('/opt/cif/lib')
 from CIF.CtrlCommands.Clients import *
 from CIF.CtrlCommands.Ping import *
 from CIF.CtrlCommands.ThreadTracker import ThreadTracker

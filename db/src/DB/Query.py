@@ -14,7 +14,7 @@ import happybase
 import struct
 import traceback
 
-sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
+sys.path.append('/opt/cif/lib/cif-protocol/pb-python/gen-py')
 import msg_pb2
 import feed_pb2
 import RFC5070_IODEF_v1_pb2

@@ -6,7 +6,7 @@ use strict;
 # fix lib paths, some may be relative
 BEGIN {
     require File::Spec;
-    my @libs = ("lib", "local/lib", "/usr/local/lib/cif-protocol/pb-perl/lib");
+    my @libs = ("lib", "local/lib", "/opt/cif/lib/cif-protocol/pb-perl/lib");
     my $bin_path;
 
     for my $lib (@libs) {

@@ -18,7 +18,7 @@ import re
 
 # adjust to match your $PREFIX if you specified one
 # default PREFIX = /usr/local
-sys.path.append('/usr/local/lib/cif-protocol/pb-python/gen-py')
+sys.path.append('/opt/cif/lib/cif-protocol/pb-python/gen-py')
 
 import msg_pb2
 import feed_pb2

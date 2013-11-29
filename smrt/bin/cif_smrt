@@ -8,7 +8,7 @@ BEGIN {
     my @libs = (
         "lib",
         "local/lib",
-	"/usr/local/lib/cif-protocol/pb-perl/lib/",
+	    "/opt/cif/lib/cif-protocol/pb-perl/lib/",
         "../libcif/lib", # in case we're in -dev mode
         "../libcif-dbi/lib", # in case we're in -dev mode
     );
