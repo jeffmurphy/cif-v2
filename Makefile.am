@@ -14,12 +14,12 @@ fixperms:
 
 install: files-install fixperms
 
-files-install: libcif-install libcif-dbi-install cif-router-install cif-smrt-install
+files-install: libcif-install libcif-dbi-install router-install smrt-install db-install ui-install protocol-install
 
-libcif-install:
+libcif-install: protocol-install
 	-( cd libcif && make install )
 
-libcif-dbi-install:
+libcif-dbi-install: protocol-install
 	-( cd libcif-dbi && make install )
 
 purgedb:
@@ -31,14 +31,17 @@ initdb:
 upgradedb:
 	-( cd libcif-dbi && make upgradedb )
 
-router-install:
+router-install: protocol-install
 	-( cd router && make install )
 
-smrt-install:
+smrt-install: protocol-install
 	-( cd smrt && make install )
 
-ui-install:
+ui-install: protocol-install
 	-( cd ui && make install )
+
+db-install: protocol-install
+	-(cd db && make install )
 
 protocol-install:
 	-( cd protocol && make install )

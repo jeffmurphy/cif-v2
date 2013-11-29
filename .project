@@ -1,52 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-	<name>cif-router</name>
-=======
-	<name>cif-db</name>
->>>>>>> db/master
-=======
-	<name>cif-smrt-perl</name>
->>>>>>> smrt/master
-=======
-	<name>cif-ui</name>
->>>>>>> ui/master
-=======
-	<name>libcif-dbi</name>
->>>>>>> libcif-dbi/master
+	<name>cif-v2</name>
 	<comment></comment>
 	<projects>
 	</projects>
 	<buildSpec>
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> ui/master
-		<buildCommand>
-			<name>org.python.pydev.PyDevBuilder</name>
-			<arguments>
-			</arguments>
-		</buildCommand>
 	</buildSpec>
 	<natures>
 		<nature>com.aptana.projects.webnature</nature>
-		<nature>org.python.pydev.pythonNature</nature>
-<<<<<<< HEAD
-=======
-	</buildSpec>
-	<natures>
-		<nature>com.aptana.projects.webnature</nature>
->>>>>>> smrt/master
-=======
->>>>>>> ui/master
-=======
-	</buildSpec>
-	<natures>
-		<nature>com.aptana.projects.webnature</nature>
->>>>>>> libcif-dbi/master
 	</natures>
 </projectDescription>
