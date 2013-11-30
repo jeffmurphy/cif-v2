@@ -25,8 +25,8 @@ libcif-dbi-install: protocol-install
 purgedb:
 	-( cd db && make purgedb )
 
-initdb:
-	-( cd db && make initdb )
+initdb-small:
+	-( cd db && make initdb-small )
 
 upgradedb:
 	-( cd libcif-dbi && make upgradedb )
@@ -68,7 +68,7 @@ realclean: clean
 	@for dir in libcif libcif-dbi smrt ui router db ; do \
 		(cd $$dir && make realclean) \
 	done
-	rm -f Makefile.in config.log config.status
+	rm -f Makefile.in config.*
 	rm configure
 	rm aclocal.m4
 	rm -fr autom4te.cache

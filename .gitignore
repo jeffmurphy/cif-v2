@@ -1,3 +1,4 @@
+db/doc/hadoop/hdfs-site.xml
 *.DS_Store
 *.class
 *.log
@@ -78,3 +79,6 @@ protocol/src/RFC4765-IDMEF-2007.proto
 protocol/src/RFC4765-IDMEF-2007.thrift
 protocol/src/RFC5070-IODEF-v1.proto
 protocol/src/RFC5070-IODEF-v1.thrift
+config.guess
+config.sub
+ltmain.sh

@@ -77,5 +77,13 @@ AC_ARG_WITH(db-port,
             DB_PORT=5432)
 AC_SUBST(DB_PORT)
 
-AC_CONFIG_FILES([Makefile libcif/Makefile libcif-dbi/Makefile router/Makefile smrt/Makefile ui/Makefile protocol/Makefile db/Makefile])
+dnl HDFSDIR
+AC_ARG_WITH(hdfs-dir,
+        AC_HELP_STRING([--with-hdfs-dir=path],
+                   [path where hdfs stores files (default: /var/lib/hadoop-hdfs/cache/hdfs]),
+            HDFSDIR=$withval,
+            HDFSDIR='/var/lib/hadoop-hdfs/cache/hdfs')
+AC_SUBST(HDFSDIR)
+
+AC_CONFIG_FILES([Makefile libcif/Makefile libcif-dbi/Makefile router/Makefile smrt/Makefile ui/Makefile protocol/Makefile db/Makefile db/doc/hadoop/hdfs-site.xml])
 AC_OUTPUT

@@ -1,5 +1,8 @@
 docdir = doc
 
+initdb-small:
+	src/install-hbase-small.sh
+
 fixperms:
 	chmod 0755 $(prefix)
 	chmod 0755 $(prefix)/bin
@@ -22,5 +25,6 @@ clean-local:
 	rm -f *~
 
 realclean: clean-local
+	rm doc/hadoop/hdfs-site.xml
 	rm Makefile.in
 	rm Makefile
