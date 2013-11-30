@@ -12,7 +12,7 @@ Cloudera has [great documentation](http://www.cloudera.com/content/cloudera-cont
 
 ## Installation (64-bit Single Server/Small)
 
-As root:
+As root, either "make initdb-small" or manually do the following:
 
 1. (JDK6/JDK7 works) yum install java
 3. rpm --import http://archive.cloudera.com/cdh4/redhat/6/x86_64/cdh/RPM-GPG-KEY-cloudera
@@ -42,3 +42,5 @@ As root:
 29. hbase shell < hbase-tables.txt   # ignore any errors about tables not existing
 
 Note the IP address of your HBase server.
+
+Continue with your CIFv2 installation.
