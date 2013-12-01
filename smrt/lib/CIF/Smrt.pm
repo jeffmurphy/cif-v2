@@ -249,9 +249,10 @@ sub init_feeds {
 sub pull_feed { 
     my $f = shift;
     my $ret = threads->create('_pull_feed',$f)->join();
+
     return(undef,'') unless($ret);
     return($ret) if($ret =~ /^ERROR: /);
-    
+
     # auto-decode the content if need be
     $ret = _decode($ret,$f);
 
@@ -282,12 +283,17 @@ sub _pull_feed {
     @pulls = sort grep(/::Pull::/,@pulls);
     foreach(@pulls){
         my ($err,$ret) = $_->pull($f);
-        return('ERROR: '.$err) if($err);
+        if ($err) {
+        	debug("Error $err") if ($::debug);
+        	return $err;
+        }
         
         # we don't want to error out if there's just no content
         next unless(defined($ret));
+        debug("returning " . length($ret)) if ($::debug);
         return($ret);
     }
+    debug("Error could not pull feed") if ($::debug);
     return('ERROR: could not pull feed');
 }
 
@@ -308,7 +314,13 @@ sub parse {
     }
 
     my ($err,$content) = pull_feed($f);
-    return($err) if($err);
+
+    if ($err) {
+    	debug("Error pulling feed: $err") if ($::debug);
+    	return $err;
+    }
+    
+    debug("Got a feed of " . length($content). " bytes") if ($::debug > 2);
     
     my $return;
     try {
@@ -434,11 +446,17 @@ sub preprocess_routine {
 
     debug('parsing...') if($::debug);
     my ($err,$recs) = $self->parse();
-    return($err) if($err);
+    if ($err) {
+    	debug("error parsing: $err") if ($::debug);
+    	return $err;
+    }
     
     debug('parsed records: '."\n".Dumper($recs)) if($::debug > 9);
     
-    return unless($#{$recs} > -1);
+    unless ($#{$recs} > -1) {
+    	debug ('no records to parse, returning') if ($::debug);
+		return;
+    }
     
     if($self->get_goback()){
         debug('sorting '.($#{$recs}+1).' recs...') if($::debug);
@@ -528,7 +546,7 @@ sub process {
     $workers_sum->bind(WORKER_SUM_CONNECTION());
     
     # this needs to be started first
-    debug('starting sender thread...');
+    debug('starting sender thread...') if ($::debug);
     threads->create('sender_routine', $self)->detach();
     sleep 1;
     # thread/zmq safety requirement
@@ -538,7 +556,7 @@ sub process {
     nanosleep NSECS_PER_MSEC * 10;
     
     ## TODO -- req/reply checkins?
-    debug('creating '.$self->get_threads().' worker threads...');
+    debug('creating '.$self->get_threads().' worker threads...') if ($::debug);
     for (1 ... $self->get_threads()) {
         threads->create('worker_routine', $self)->detach();
     }
@@ -550,9 +568,16 @@ sub process {
     # there are implications with how we return errors
     #my ($err,$array) = threads->create('preprocess_routine',$self)->join();
     my ($err,$array) = $self->preprocess_routine();
-    return($err) if($err);
-
-    return (undef,'no records') unless($#{$array} > -1);
+    
+    if ($err) {
+    	debug("error: $err") if ($::debug > 0);
+	    return($err) if($err);
+    }
+    
+    unless ($#{$array} > -1) {
+    	debug("array is empty, no records to process") if ($::debug > 1);
+    	return (undef,'no records');
+    }
     
     my $master_count = ($#{$array} + 1);
     debug('processing: '.$master_count.' records...');
@@ -560,9 +585,10 @@ sub process {
     debug('master count: '.$master_count);
 
     ## TODO -- batch this out a little
-    debug('sending to workers...') if($::debug);
+    debug("sending ".@$array." to workers...") if($::debug);
     #$workers->send_as(json => $_) foreach(@$array);
     $self->send_as_json($workers, $_) foreach (@$array);
+    debug("done sending to workers") if ($::debug);
     
     my $poller = ZMQ::Poller->new();
     $poller->register($workers_sum, ZMQ_POLLIN);
@@ -572,11 +598,11 @@ sub process {
     my $total_recs = $master_count;
     my $sent_recs = 0;
     do {
-        debug('waiting on message...') if($::debug && $::debug > 1);
+        debug('waiting on message...') if($::debug > 1);
         
         debug('polling...') if($::debug > 5);
         my @fired = $poller->poll(1000);
-        debug('found msg') if($::debug && $::debug > 1);
+        debug('found msg') if($::debug > 1);
         
         for my $pending_event (@fired) {
         	if ($pending_event->{socket} == $workers_sum) {
@@ -594,9 +620,9 @@ sub process {
 	        }
 	        
 	        ## TODO -- should this be after the return check?
-	        debug('master count: '.$master_count) if($::debug && $::debug > 1);
+	        debug('master count: '.$master_count) if($::debug > 1);
 	        if($master_count == 0){
-	            debug('sending total: '.$total_recs) if($::debug && $::debug > 1);
+	            debug('sending total: '.$total_recs) if($::debug > 1);
 	            my $tosend = 'TOTAL:'.$total_recs;
 	            $ctrl->sendmsg($tosend, 0); 
 	            $ctrl->sendmsg('WRK_DONE', 0);
@@ -604,7 +630,7 @@ sub process {
 	        # waiting for sender
 	        
 	        if ($pending_event->{socket} == $return) {
-	            debug('return msg received') if($::debug && $::debug > 1);
+	            debug('return msg received') if($::debug > 1);
 	            my $msg = $return->recvmsg();
 		
 	            if($msg->data() =~ /^ERROR: /){
@@ -619,8 +645,9 @@ sub process {
 	        }
 	        nanosleep NSECS_PER_MSEC;
 	        # total_recs is based on 0 ... X not -1 ... X
-}	        debug('sent recs: '.$sent_recs);
-	        debug('total recs: '.$total_recs);
+		}	        
+		debug('sent recs: '.$sent_recs);
+	    debug('total recs: '.$total_recs);
         
     } while($sent_recs != -1 && $sent_recs < $total_recs);
 
@@ -890,6 +917,7 @@ sub sender_routine {
 	            	my $tosend = "ERROR: " . ($ret->{statusMsg} || "none");
 	                $return->sendmsg($tosend, 0);
 	            } else {
+	            	debug('returning message: ' . $ret->{statusMsg}) if ($::debug > 2);
 	                $return->sendmsg($ret->{statusMsg}, 0); # this contains the # of items submitted
 	            }
 	            $sent_recs += ($#{$queue}+1);
