@@ -372,7 +372,7 @@ class Query(object):
                                 for key, value in table.scan(row_start=startrow, row_stop=stoprow):
                                     iodef_rowkey = value['b:iodef_rowkey']
                                     iodef_row = self.tbl_co.row(iodef_rowkey)
-                                    print "hahah"
+
                                     for key, value in iodef_row:
                                         if re.match(r'cf:index_', key) == None:
                                             bot = (key.split(":"))[1]
