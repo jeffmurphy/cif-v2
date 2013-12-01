@@ -352,7 +352,8 @@ class Query(object):
                                     iodef_rowkey = value['b:iodef_rowkey']
                                     iodef_row = self.tbl_co.row(iodef_rowkey)
                                     
-                                    for key, value in iodef_row:
+                                    for key in iodef_row:
+                                        value = iodef_row[key]
                                         if re.match(r'cf:index_', key) == None:
                                             bot = (key.split(":"))[1]
                                             qrs.baseObjectType.append(bot)
@@ -373,7 +374,10 @@ class Query(object):
                                     iodef_rowkey = value['b:iodef_rowkey']
                                     iodef_row = self.tbl_co.row(iodef_rowkey)
 
-                                    for key, value in iodef_row:
+                                    print "key ", iodef_row
+                                    
+                                    for key in iodef_row:
+                                        value = iodef_row[key]
                                         if re.match(r'cf:index_', key) == None:
                                             bot = (key.split(":"))[1]
                                             qrs.baseObjectType.append(bot)
