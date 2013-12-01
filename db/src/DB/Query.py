@@ -373,8 +373,6 @@ class Query(object):
                                 for key, value in table.scan(row_start=startrow, row_stop=stoprow):
                                     iodef_rowkey = value['b:iodef_rowkey']
                                     iodef_row = self.tbl_co.row(iodef_rowkey)
-
-                                    print "key ", iodef_row
                                     
                                     for key in iodef_row:
                                         value = iodef_row[key]
