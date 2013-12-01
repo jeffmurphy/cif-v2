@@ -173,13 +173,14 @@ class Purger(object):
                             data_age = data['b:iodef_rowkey'][1]
                             document_rowkey = data['b:iodef_rowkey'][0]
                         #elif 'b:stiix_rowkey' in data: ... etc
-                    
-                        if time.time() - data_age < oldest_allowed:
+
+                        # data_age is in mills, time.time is in secs
+                        
+                        if 1000*time.time() - data_age > oldest_allowed:
                             # cif_objs.row(iodef_rowkey) will contain a column "cf:index_$sec_$thisrowkey" we want to delete that reference
                             self.remove_index_and_dereference(tbl, key, co_tbl, table_name, document_rowkey)
     
     def lookup_max_lifespan(self, pri, sec):
-        return 86400
         if pri != None and sec != None:
             # index.$pri.$sec.purge_after
             rkey = "index.%s.%s.purge_after" % (pri, sec)
