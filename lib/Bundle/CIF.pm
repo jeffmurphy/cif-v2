@@ -51,6 +51,7 @@ OSSP::uuid 1.0501
 Regexp::Common 2.122
 Regexp::Common::net::CIDR 0.02
 Sys::MemInfo 0.91
+Text::CSV
 Time::HiRes 1.9719
 Try::Tiny 0.04
 URI::Escape 1.56
