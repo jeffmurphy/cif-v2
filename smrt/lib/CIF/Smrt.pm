@@ -593,7 +593,7 @@ sub process {
     my $cc = 0;
     foreach my $ael (@$array) {
 	    $self->send_as_json($workers, $ael);
-	    debug("sent $cc messages so far") if (++$cc % 1000 == 0);
+	    debug("sent $cc messages so far") if ($::debug && (++$cc % 1000 == 0));
     }
     
     debug("done sending to workers") if ($::debug);
