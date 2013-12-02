@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 # used for LWP user-agent version
-our $VERSION = '1.0';
+our $VERSION = '2.0';
 
 sub pull {
     my $class = shift;

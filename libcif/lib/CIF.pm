@@ -79,6 +79,9 @@ sub is_uuid {
 sub debug {
     return unless($::debug);
 
+    select STDERR; $| = 1;      # make unbuffered
+    select STDOUT; $| = 1;      # make unbuffered
+
     my $msg = shift;
     my ($pkg,$f,$line,$sub) = caller(1);
     $sub ||= "main";
@@ -97,11 +100,11 @@ sub debug {
         }
     } else {
         if($::debug > 5){
-            print("[DEBUG][$ts][$f:$sub:$line]: $msg\n");
+            print(STDERR "[DEBUG][$ts][$f:$sub:$line]: $msg\n");
         } elsif($::debug > 1) {
-            print("[DEBUG][$ts][$sub]: $msg\n");
+            print(STDERR "[DEBUG][$ts][$sub]: $msg\n");
         } else {
-            print("[DEBUG][$ts]: $msg\n");
+            print(STDERR "[DEBUG][$ts]: $msg\n");
         }
     }
 }

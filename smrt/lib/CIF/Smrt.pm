@@ -507,7 +507,10 @@ sub send_as_json {
 	my $sock = shift;
 	my $buffer = shift;
 	my $json = encode_json $buffer;
-	return $sock->sendmsg($json, 0);
+	#debug("sendmsg");
+	my $rv = $sock->sendmsg($json, 0);
+	#debug("sentmsg");
+	return $rv;
 }
 
 sub recv_as_json {
@@ -586,8 +589,13 @@ sub process {
 
     ## TODO -- batch this out a little
     debug("sending ".@$array." to workers...") if($::debug);
-    #$workers->send_as(json => $_) foreach(@$array);
-    $self->send_as_json($workers, $_) foreach (@$array);
+
+    my $cc = 0;
+    foreach my $ael (@$array) {
+	    $self->send_as_json($workers, $ael);
+	    debug("sent $cc messages so far") if (++$cc % 1000 == 0);
+    }
+    
     debug("done sending to workers") if ($::debug);
     
     my $poller = ZMQ::Poller->new();
