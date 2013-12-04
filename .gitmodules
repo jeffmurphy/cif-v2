@@ -1,0 +1,3 @@
+[submodule "smrt/libcif"]
+	path = smrt/libcif
+	url = https://github.com/wesyoung/libcif.git
