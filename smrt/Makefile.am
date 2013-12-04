@@ -1,38 +1,21 @@
-EXTRA_DIST = lib bin sbin rules/etc
-
-ME=cif-smrt
-BUILD=2.0
-SNAPSHOT=$(ME)-$(BUILD)
+EXTRA_DIST = lib bin sbin rules
 
 all: default
 
 default:
 	@echo "Please read the README before beginning your installation."
 
-fixperms:
-	chmod 0755 $(prefix)
-	chown -R $(CIF_USER) $(prefix)
-	chgrp -R $(CIF_GROUP) $(prefix)
-
-install: files-install etc-install local-whitelist fixperms etc-link
+install: files-install etc-install local-whitelist etc-link
 
 files-install: libs-install bin-install
 
-depends: fixdeps
-
-fixdeps:
-	$(PERL) ./sbin/test-dependencies --verbose --install --prefix $(prefix)
-
-testdeps:
-	$(PERL) ./sbin/test-dependencies --verbose --prefix $(prefix)
-	
 local-whitelist:
 	[ -e $(prefix)/etc/whitelist_domains ] || touch "$(prefix)/etc/whitelist_domains"
 	[ -e $(prefix)/etc/whitelist_infrastructure ] || touch "$(prefix)/etc/whitelist_infrastructure"
 	[ -e $(prefix)/etc/whitelist_urls ] || touch "$(prefix)/etc/whitelist_urls"
 
 etc-link:
-	[ -d /etc/cif ] || ln -sf $(prefix)/etc /etc/cif
+	[ -d $(sysconfdir) ] || ln -sf $(prefix)/etc $(sysconfdir)
     
 etc-install:
 	[ -d $(sysconfdir) ] || $(INSTALL) -m 0755 -d $(sysconfdir)
@@ -67,6 +50,3 @@ realclean: clean
 
 reconf:
 	autoreconf -vf
-
-snapshot:
-	git archive --format=tar --prefix=$(BUILD)/ $(BUILD) | gzip > $(SNAPSHOT).tar.gz
