@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use threads;
 
-our $VERSION = '0.99_03';
+our $VERSION = '2.0000_01'; #2.00.00-alpha.1
 $VERSION = eval $VERSION;  # see L<perlmodstyle>
 
 # we're using ipc instead of inproc cause perl sucks
@@ -21,11 +21,6 @@ use constant CTRL_CONNECTION        => 'ipc:///tmp/ctrl';
 
 # for figuring out throttle
 use constant DEFAULT_THROTTLE_FACTOR => 4;
-
-# default severity mapping
-use constant DEFAULT_SEVERITY_MAP => {
-    botnet      => 'high',
-};
 
 use MIME::Base64;
 
@@ -64,7 +59,7 @@ __PACKAGE__->mk_accessors(qw(
     entries defaults feed rules load_full goback 
     client wait_for_server name instance 
     batch_control client_config postprocess apikey
-    severity_map proxy
+    proxy
 ));
 
 our @preprocessors;
@@ -176,20 +171,7 @@ sub init_config {
     $self->set_config(          $args->{'config'}->param(-block => 'cif_smrt'));
     $self->set_feeds_config(    $args->{'config'}->param(-block => 'cif_feeds'));
     
-    $self->init_config_severity($args);
-    
     return(undef,1);
-}
-
-sub init_config_severity {
-    my $self = shift;
-    my $args = shift;
-    
-    my $map = $args->{'config'}->param(-block => 'cif_smrt_severity');
-    $map = DEFAULT_SEVERITY_MAP() unless(keys %$map);
-    
-    $self->set_severity_map($map);
-    
 }
 
 sub init_rules {
@@ -480,11 +462,6 @@ sub preprocess_routine {
              
         foreach my $p (@preprocessors){
             $r = $p->process($self->get_rules(),$r);
-        }
-        
-        # TODO -- work-around, make this more configurable
-        unless($r->{'severity'}){
-            $r->{'severity'} = ($self->get_severity_map->{$r->{'assessment'}}) ? $self->get_severity_map->{$r->{'assessment'}} : 'medium';
         }
             
         ## TODO -- if we do this, we need to degrade the count somehow...
