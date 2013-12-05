@@ -1,7 +1,7 @@
 package CIF::Smrt;
 use base 'Class::Accessor';
 
-use 5.008008;
+use 5.011;
 use strict;
 use warnings;
 use threads;
