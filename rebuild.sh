@@ -1,6 +1,4 @@
 make realclean
-automake --copy --add-missing
-aclocal
-autoreconf -vf
+autoreconf -vfi
 chmod 755 configure
 ./configure
