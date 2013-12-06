@@ -6,6 +6,7 @@ use 5.011;
 
 BEGIN { 
     use_ok('CIF');
+    use_ok('CIF::Smrt');
     use_ok('CIF::Smrt::FetcherFactory');
 };
 
@@ -17,6 +18,15 @@ my $ret = CIF::Smrt::FetcherFactory->new_plugin({
     }
 });
 
-warn Dumper($ret);
+$ret = CIF::Smrt->new({
+    config  => $ENV{'HOME'}.'/.cif',
+    rule    => {
+        feed        => 'https://example.com:8443/myfeed.json',
+        confidence  => 50,
+        assessment  => 'botnet',
+    }
+});
+
+warn ::Dumper($ret);
 
 done_testing();

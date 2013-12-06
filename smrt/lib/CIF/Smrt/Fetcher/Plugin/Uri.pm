@@ -6,14 +6,16 @@ use namespace::autoclean;
 
 # moose stuff
 use Moose;
+use Moose::Util::TypeConstraints;
 use MooseX::FollowPBP;
 use MooseX::Aliases;
 use MooseX::NonMoose;
 
+# cif stuff
+use CIF::Type;
+
 extends 'LWP::UserAgent';
 with 'CIF::Smrt::Fetcher::Plugin';
-
-use constant DEFAULT_AGENT => 'cif-smrt/'.$CIF::VERSION.' (csirtgadgets.org)';
 
 has 'capacity' => (
     is      => 'ro',
@@ -22,34 +24,43 @@ has 'capacity' => (
 );
 
 has 'uri' => (
-    is  => 'ro',
-    isa => 'Str',
+    is          => 'ro',
+    isa         => 'CIF::Type::Uri',
+    alias       => ['feed','url'],
+    required    => 1,
+    coerce      => 1,
 );
 
-#has 'agent' => (
-#    is      => 'rw',
-#    isa     => 'Str',
-#    default => sub { DEFAULT_AGENT() },
-#);
-
-has 'token' => (
+has 'TLS_verify_mode' => (
     is      => 'ro',
     isa     => 'Str',
-    alias   =>  ['password','pass','apikey','key'],
+    alias   => ['tls_verify', 'SSL_verify_mode']
 );
 
 sub understands {
     my $self = shift;
     my $args = shift;
     
-    return 1 if($args->{'feed'} =~ /^http/);
+    return 0 unless($args->{'feed'});
+    return 1 if($args->{'feed'} =~ /^(http|ftp|scp)/);
 }
 
 sub process {
     my $self = shift;
     my $args = shift;
     
+    #die ::Dumper($self);
 }
+
+around BUILDARGS => sub {
+    my $orig = shift;
+    my $self = shift;
+    my %args = @_;
+  
+    #$args{'feed'} = URI->new($args{'feed'});
+
+    return $self->$orig(%args);
+};
 
 sub BUILD {
     my $self    = shift;
@@ -68,7 +79,6 @@ sub BUILD {
     } else {
         $self->env_proxy();
     }
-    die ::Dumper($self);
 }
 
 __PACKAGE__->meta->make_immutable();

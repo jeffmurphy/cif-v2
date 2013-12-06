@@ -11,10 +11,24 @@ use MooseX::FollowPBP;
 # http://stackoverflow.com/questions/10954827/perl-moose-how-can-i-dynamically-choose-a-specific-implementation-of-a-metho
 requires qw(understands process);
 
-has 'TLS_verify_mode' => (
+use constant DEFAULT_AGENT => 'cif-smrt/'.$CIF::Smrt::VERSION.' (csirtgadgets.org)';
+
+has 'token'     => (
     is      => 'ro',
     isa     => 'Str',
-    alias   => ['tls_verify', 'SSL_verify_mode']
+    alias   =>  ['password','pass','apikey','key'],
+);
+
+has 'timeout'   => (
+    is      => 'ro',
+    isa     => 'Int',
+    default => 180,
+);
+
+has 'agent'     => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => DEFAULT_AGENT(),
 );
 
 1;
