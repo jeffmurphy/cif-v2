@@ -14,6 +14,7 @@ install:
 	$(INSTALL) -m 0755 "poc/cif-router.py" "$(bindir)/cif-router.py"
 	$(INSTALL) -m 0755 "poc/CIFRouter/__init__.py" "$(bindir)/CIFRouter/__init__.py"
 	$(INSTALL) -m 0755 "poc/CIFRouter/MiniClient.py" "$(bindir)/CIFRouter/MiniClient.py"
+	$(INSTALL) -m 0755 "poc/CIFRouter/PubSubMgr.py" "$(bindir)/CIFRouter/PubSubMgr.py"
 
 clean-local:
 	rm -f *~

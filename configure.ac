@@ -3,6 +3,7 @@
 
 AC_PREREQ([2.63])
 AC_INIT(cif-v1, [2.0], [ci-framework@googlegroups.com])
+AM_INIT_AUTOMAKE
 
 # setup
 

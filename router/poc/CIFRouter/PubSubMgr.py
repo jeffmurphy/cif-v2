@@ -43,19 +43,19 @@ class PubSubMgr(object):
     def dosubscribe(self, client, m):
         client = m.src
         if client in self.publishers:
-            print "dosubscribe: we've seen this client before. re-using old connection."
+            self.L("dosubscribe: we've seen this client before. re-using old connection.")
             return control_pb2.ControlType.SUCCESS
         elif self.clients.isregistered(client) == True:
             if self.clients.apikey(client) == m.apikey:
-                print "dosubscribe: New publisher to connect to " + client
+                self.L("dosubscribe: New publisher to connect to " + client)
                 self.publishers[client] = time.time()
                 addr = m.iPublishRequest.ipaddress
                 port = m.iPublishRequest.port
-                print "dosubscribe: connect our xsub -> xpub on " + addr + ":" + str(port)
+                self.L("dosubscribe: connect our xsub -> xpub on " + addr + ":" + str(port))
                 self.xsub.connect("tcp://" + addr + ":" + str(port))
                 return control_pb2.ControlType.SUCCESS
-            print "dosubscribe: iPublish from a registered client with a bad apikey: " + client + " " + m.apikey
-        print "dosubscribe: iPublish from a client who isnt registered: \"" + client + "\""
+            self.L("dosubscribe: iPublish from a registered client with a bad apikey: " + client + " " + m.apikey)
+        self.L("dosubscribe: iPublish from a client who isnt registered: \"" + client + "\"")
         return control_pb2.ControlType.FAILED
 
     def myrelay(self):
@@ -82,9 +82,9 @@ class PubSubMgr(object):
                         self.stats_tracker.setrelayed(1, bmt.baseObjectType)
                         
         
-                print "[myrelay] total:%d got:%d bytes" % (relaycount, len(m)) 
+                self.L("total:%d got:%d bytes" % (relaycount, len(m))) 
                 #print "[myrelay] got msg on our xsub socket: " , m
                 self.xpub.send(m)
     
             except Exception as e:
-                print "[myrelay] invalid message received: ", e
+                print "invalid message received: ", e
