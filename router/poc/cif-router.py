@@ -58,28 +58,12 @@ sys.path.append('/opt/cif/lib')
 from CIF.RouterStats import *
 from CIF.CtrlCommands.Clients import *
 from CIF.CtrlCommands.Ping import *
-from CIFRouter.MiniClient import *
 from CIF.CtrlCommands.ThreadTracker import ThreadTracker
 
-myname = "cif-router"
+from CIFRouter.MiniClient import *
+from CIFRouter.PubSubMgr import *
 
-def dosubscribe(client, m):
-    client = m.src
-    if client in publishers :
-        print "dosubscribe: we've seen this client before. re-using old connection."
-        return control_pb2.ControlType.SUCCESS
-    elif clients.isregistered(client) == True:
-        if clients.apikey(client) == m.apikey:
-            print "dosubscribe: New publisher to connect to " + client
-            publishers[client] = time.time()
-            addr = m.iPublishRequest.ipaddress
-            port = m.iPublishRequest.port
-            print "dosubscribe: connect our xsub -> xpub on " + addr + ":" + str(port)
-            xsub.connect("tcp://" + addr + ":" + str(port))
-            return control_pb2.ControlType.SUCCESS
-        print "dosubscribe: iPublish from a registered client with a bad apikey: " + client + " " + m.apikey
-    print "dosubscribe: iPublish from a client who isnt registered: \"" + client + "\""
-    return control_pb2.ControlType.FAILED
+myname = "cif-router"
 
 def list_clients(client, apikey):
     if clients.isregistered(client) == True and clients.apikey(client) == apikey:
@@ -172,38 +156,6 @@ def handle_miniclient_reply(socket, routerport, publisherport):
             
             
         miniclient.remove_pending_apikey(apikey)
-
-def myrelay(pubport):
-    relaycount = 0
-    print "[myrelay] Create XPUB socket on " + str(pubport)
-    xpub = context.socket(zmq.PUB)
-    xpub.bind("tcp://*:" + str(pubport))
-    
-    while True:
-        try:
-            relaycount = relaycount + 1
-            m = xsub.recv()
-            
-            _m = msg_pb2.MessageType()
-            _m.ParseFromString(m)
-            
-            if _m.type == msg_pb2.MessageType.QUERY:
-                mystats.setrelayed(1, 'QUERY')
-            elif _m.type == msg_pb2.MessageType.REPLY:
-                mystats.setrelayed(1, 'REPLY')
-            elif _m.type == msg_pb2.MessageType.SUBMISSION:
-                mystats.setrelayed(1, 'SUBMISSION')
-                
-                for bmt in _m.submissionRequest:
-                    mystats.setrelayed(1, bmt.baseObjectType)
-                    
-    
-            print "[myrelay] total:%d got:%d bytes" % (relaycount, len(m)) 
-            #print "[myrelay] got msg on our xsub socket: " , m
-            xpub.send(m)
-
-        except Exception as e:
-            print "[myrelay] invalid message received: ", e
     
 def usage():
     print "cif-router [-r routerport] [-p pubport] [-m myid] [-a myapikey] [-dn dbname] [-dk dbkey] [-h]"
@@ -225,7 +177,6 @@ global thread_tracker
 context = zmq.Context()
 clients = Clients()
 mystats = RouterStats()
-publishers = {}
 routerport = 5555
 publisherport = 5556
 myid = "cif-router"
@@ -237,7 +188,7 @@ miniclient = None
 miniclient_id = myid + "-miniclient"
 register_wait_map = {}
 unregister_wait_map = {}
-
+thread_tracker = ThreadTracker(False)
 
 for o, a in opts:
     if o == "-r":
@@ -265,19 +216,7 @@ socket.setsockopt(zmq.IDENTITY, myname)
 poller = zmq.Poller()
 poller.register(socket, zmq.POLLIN)
 
-print "Create XSUB socket"
-xsub = context.socket(zmq.SUB)
-xsub.setsockopt(zmq.SUBSCRIBE, '')
-
-print "Connect XSUB<->XPUB"
-thread = threading.Thread(target=myrelay, args=(publisherport,))
-thread.start()
-while not thread.isAlive():
-    print "waiting for pubsub relay thread to become alive"
-    time.sleep(1)
-thread_tracker = ThreadTracker(False)
-thread_tracker.add(id=thread.ident, user='Router', host='localhost', state='Running', info="PUBSUB Relay")
-
+psmgr = PubSubMgr(publisherport, thread_tracker, clients, mystats)
 
 print "Entering event loop"
 
@@ -446,7 +385,7 @@ try:
                                 elif msgcommand == control_pb2.ControlType.IPUBLISH:
                                      print "\tIPUBLISH from: " + msgfrom
                                      if open_for_business == True:
-                                         rv = dosubscribe(from_zmqid, msg)
+                                         rv = psmgr.dosubscribe(from_zmqid, msg)
                                          msg.status = rv
                                          socket.send_multipart( [from_zmqid, '', msg.SerializeToString()] )
                             else:
@@ -461,11 +400,11 @@ try:
                         
 except KeyboardInterrupt:
     print "Shut down."
-    if thread.isAlive():
+    if psmgr.thread.isAlive():
         try:
-            thread._Thread__stop()
+            psmgr.thread._Thread__stop()
         except:
-            print(str(thread.getName()) + ' could not be terminated')
+            print(str(psmgr.thread.getName()) + ' could not be terminated')
     sys.exit(0)
 
     

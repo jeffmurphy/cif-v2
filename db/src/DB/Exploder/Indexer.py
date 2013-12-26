@@ -29,11 +29,8 @@ class Indexer(object):
     """
     def __init__ (self, connectionPool, index_type, num_servers = 1, table_batch_size = 1000, debug = 0):
         self.debug = debug
-        print "indexer connect"
         self.pool = connectionPool
-        print "indexer load primary index map"
         self.primary_index = PrimaryIndex(connectionPool, debug)
-        print "index init log"
         self.log = Log(connectionPool)
         
         self.num_servers = num_servers
