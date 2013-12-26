@@ -1,0 +1,19 @@
+import "krenk.proto";
+
+package CIF.Msg;
+
+
+message SubmissionType {
+    message SubmissionRequest {
+        optional string baseObjectType = 1; // eg "RFC5070_IODEF_v1"
+        optional bytes data = 2;
+    }
+	
+	// the version field SHALL always be the first field in the message "= 1"
+    optional double version                      = 1 [default = 20131225];
+    optional string apikey                       = 2;
+    optional Krenk.KrenkType   disclosure        = 3;
+    repeated SubmissionRequest submissionRequest = 4;
+}
+
+

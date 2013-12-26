@@ -82,3 +82,6 @@ protocol/src/RFC5070-IODEF-v1.thrift
 config.guess
 config.sub
 ltmain.sh
+router/Makefile.am
+protocol/src/pb-perl/lib/CIF/_Msg.pm
+protocol/src/pb-perl/lib/CIF/Msg/Feed.pm

@@ -59,6 +59,9 @@ class PubSubMgr(object):
         return control_pb2.ControlType.FAILED
 
     def myrelay(self):
+        """
+        
+        """
         relaycount = 0
         
         self.L("PubSubMgr thread started")
