@@ -9,8 +9,9 @@ use Google::ProtocolBuffers;
 
 my $todo = [
     #[ input filename, output filename,  packagename ] 
-	[ 'msg.proto',                'lib/CIF/_Msg.pm',               'CIF::_Msg'              ],
+	[ 'submission.proto',         'lib/CIF/_Msg.pm',               'CIF::_Msg'              ],
 	[ 'feed.proto',               'lib/CIF/Msg/Feed.pm',           'CIF::Msg::Feed'         ],
+	[ 'krenk.proto',              'lib/CIF/Msg/Krenk.pm',          'CIF::Msg::Krenk'        ],
 	[ 'control.proto',            'lib/CIF/Msg/Control.pm',        'CIF::Msg::Control'      ],
 	[ 'profile.proto',            'lib/CIF/Msg/Profile.pm',        'CIF::Msg::Profile'      ],
 	[ 'ICSG-v1_7-2007.proto',     'lib/ICSG_v1_7_2007_pb2.pm',     'ICSG_v1_7_2007_pb2'     ],

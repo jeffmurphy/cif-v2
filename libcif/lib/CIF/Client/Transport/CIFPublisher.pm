@@ -244,15 +244,11 @@ sub send {
     return unless(defined($msg));
 
     my $rv = zmq_sendmsg($self->{publisher}, 
-    				  $self->add_seq($msg)->encode());
+    				     $self->encode());
 
     confess("(Foundation) failed to zmq_sendmsg the message $!") if $rv == -1;
     
-    my $rm = CIF::Msg::MessageType->encode({
-    	type => CIF::Msg::MessageType::MsgType::SUBMISSION(),
-    	status => 	CIF::Msg::MessageType::StatusType::SUCCESS()
-    });
-    return (undef, $rm);
+    return 'SUCCESS';
 }
 
 sub send_direct {

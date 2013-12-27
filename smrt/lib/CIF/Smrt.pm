@@ -919,14 +919,12 @@ sub sender_routine {
 	            # if the answers was 'success' then send the number of messages we submitted
 	            # back to process()
 	            
-	            my $status = $ret->get_status();
-	            
-	            if($status != CIF::Msg::ControlType::StatusType::SUCCESS()) {
+	            if ($ret == -1) {
 	            	my $tosend = "ERROR: " . ($ret->{statusMsg} || "none");
 	                $return->sendmsg($tosend, 0);
 	            } else {
-	            	debug('returning message: ' . $ret->{statusMsg}) if ($::debug > 2);
-	                $return->sendmsg($ret->{statusMsg}, 0); # this contains the # of items submitted
+	            	debug('returning success: #items=' . $ret) if ($::debug > 2);
+	                $return->sendmsg($ret, 0); # this contains the # of items submitted
 	            }
 	            $sent_recs += ($#{$queue}+1);
 	            $queue = [];

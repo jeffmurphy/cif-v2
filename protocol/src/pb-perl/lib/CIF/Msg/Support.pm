@@ -12,8 +12,8 @@ use Carp qw(confess cluck);
 sub versionCheck {
 	my $m = shift;
 	
-	if (ref($m) eq "CIF::Msg::MessageType") {
-		my $ourV = getOurVersion("Message");
+	if (ref($m) eq "CIF::Msg::SubmissionType") {
+		my $ourV = getOurVersion("Submission");
 		return 0 if (int($m->get_version) != int($ourV));
 	}
 	
@@ -28,7 +28,7 @@ sub versionCheck {
 	}
 	
 	else {
-		cluck("versionCheck expected CIF::Msg::MessageType, ::ControlType or ::FeedType but got: ". 
+		cluck("versionCheck expected CIF::Msg::SubmissionType, ::ControlType or ::FeedType but got: ". 
 			ref($m). "\n");
 		return 0;
 	}
@@ -40,13 +40,13 @@ sub versionCheck {
 
 sub getOurVersion {
 	my $t = shift;
-	confess ("getOurVersion(type) where type is Message, Control or Feed") unless defined($t);
+	confess ("getOurVersion(type) where type is Submission, Control or Feed") unless defined($t);
 	
-	return CIF::Msg::MessageType->decode(
-		CIF::Msg::MessageType->encode({
-			type => CIF::Msg::MessageType::MsgType::SUBMISSION(),
+	return CIF::Msg::SubmissionType->decode(
+		CIF::Msg::SubmissionType->encode({
+			apikey => '',
 		})
-	)->get_version  if ($t eq "Message");
+	)->get_version  if ($t eq "Submission");
 	
 	return CIF::Msg::ControlType->decode(
 		CIF::Msg::ControlType->encode({

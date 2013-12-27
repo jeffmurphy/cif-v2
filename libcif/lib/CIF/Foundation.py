@@ -8,8 +8,7 @@ import hashlib
 import socket
 
 sys.path.append('/opt/cif/lib/cif-protocol/pb-python/gen-py')
-import msg_pb2
-import feed_pb2
+
 import RFC5070_IODEF_v1_pb2
 import MAEC_v2_pb2
 import control_pb2

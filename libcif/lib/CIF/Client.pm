@@ -168,29 +168,21 @@ sub submit {
     
     my $nitems = @$data;
     
-    my $msg = CIF::Msg::MessageType->new({
-    	version => CIF::Msg::Support::getOurVersion("Message"),
-        type    => CIF::Msg::MessageType::MsgType::SUBMISSION(), 
+    my $msg = CIF::Msg::SubmissionType->new({
+    	version => CIF::Msg::Support::getOurVersion("Submission"),
         apikey  => $self->get_apikey(),
 		submissionRequest => $data
     });
         
-    my ($err,$ret) = $self->send($msg);
+    my $ret = $self->send($msg);
     
-    return('ERROR: server failure, contact system administrator') unless($ret);
-    
-    $ret = CIF::Msg::MessageType->decode($ret);
-    
-    unless($ret->get_status() != CIF::Msg::MessageType::StatusType::SUCCESS()){
-        return('ERROR: ' . $ret->{statusMsg}) if($ret->get_status() == CIF::Msg::MessageType::StatusType::FAILED());
-        return('ERROR: unauthorized') if($ret->get_status() == CIF::Msg::MessageType::StatusType::UNAUTHORIZED());
-    }
+    return('ERROR: server failure, contact system administrator', -1) unless($ret);
+    return('ERROR: ' . $ret, -1) if ($ret != 'SUCCESS');
     
     # on success, pass the number of successfully submitted objects back to the
     # caller
-    $ret->{statusMsg} = $nitems;
     
-    return (undef,$ret);
+    return (undef, $nitems);
 }    
 
 sub new_submission {
