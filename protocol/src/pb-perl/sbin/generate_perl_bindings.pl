@@ -9,9 +9,9 @@ use Google::ProtocolBuffers;
 
 my $todo = [
     #[ input filename, output filename,  packagename ] 
-	[ 'submission.proto',         'lib/CIF/_Msg.pm',               'CIF::_Msg'              ],
+	[ 'submission.proto',         'lib/CIF/Msg/Submission.pm',     'CIF::Msg::Submission'   ], # includes Krenk
 	[ 'feed.proto',               'lib/CIF/Msg/Feed.pm',           'CIF::Msg::Feed'         ],
-	[ 'krenk.proto',              'lib/CIF/Msg/Krenk.pm',          'CIF::Msg::Krenk'        ],
+#	[ 'krenk.proto',              'lib/CIF/Msg/Krenk.pm',          'CIF::Msg::Krenk'        ],
 	[ 'control.proto',            'lib/CIF/Msg/Control.pm',        'CIF::Msg::Control'      ],
 	[ 'profile.proto',            'lib/CIF/Msg/Profile.pm',        'CIF::Msg::Profile'      ],
 	[ 'ICSG-v1_7-2007.proto',     'lib/ICSG_v1_7_2007_pb2.pm',     'ICSG_v1_7_2007_pb2'     ],
@@ -26,10 +26,11 @@ foreach my $t (@$todo) {
 	Google::ProtocolBuffers->parsefile(
 		"../" . $t->[0],
     	{
-        generate_code => $t->[1],
-        create_accessors    => 1,
-        follow_best_practice => 1,
-        package_name => $t->[2]
+    		include_dir => "..",
+        	generate_code => $t->[1],
+        	create_accessors    => 1,
+        	follow_best_practice => 1,
+        	package_name => $t->[2]
     	}
 	);
 }
