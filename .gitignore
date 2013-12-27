@@ -85,3 +85,6 @@ ltmain.sh
 router/Makefile.am
 protocol/src/pb-perl/lib/CIF/_Msg.pm
 protocol/src/pb-perl/lib/CIF/Msg/Feed.pm
+protocol/src/pb-perl/lib/CIF/Msg/Feed.pm
+protocol/src/pb-perl/lib/CIF/Msg/Krenk.pm
+protocol/src/pb-perl/lib/CIF/_Msg.pm

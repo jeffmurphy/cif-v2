@@ -4,6 +4,7 @@ use lib './lib';
 use CIF::Msg;
 use CIF::Msg::Control;
 use CIF::Msg::Support;
+use CIF::Msg::Submission;
 use RFC5070_IODEF_v1_pb2;
 use MAEC_v2_pb2;
 use Data::Dumper;
@@ -47,7 +48,6 @@ my $dc = CIF::Msg::ControlType->decode($c);
 	
 print "Control message created with version: " . $dc->get_version . "\n";
 
-
 if (!CIF::Msg::Support::versionCheck($dc)) {
 	die "Sorry, version of received message is incompatible. We can not process it.\n" .
 		"\tOur compiled in version is: " . CIF::Msg::Support::getOurVersion("Control") . "\n" .
@@ -62,10 +62,9 @@ if (!CIF::Msg::Support::versionCheck($x)) {
 		"\tRecvd message is version: " . $x->get_version;
 }
 
-print "decoded type: ", $x->get_type , "\n";
-print "decoded version: " . $x->get_version . "\n";
-print "decoded buffer: ". Dumper($x) . "\n";
-print "our message contains the following inner messages:\n";
+print "[Submission] decoded buffer: ". Dumper($x) . "\n";
+print "[Submission] decoded version: " . $x->get_version . "\n";
+print "[Submission] our message contains the following inner messages:\n";
 for (my $i = 0 ; $i <= $#{$x->get_submissionRequest} ; $i++) {
 	print "\t#$i: " . $x->get_submissionRequest->[0]->get_baseObjectType . "\n";
 }

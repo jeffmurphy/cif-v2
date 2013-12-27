@@ -1,5 +1,5 @@
 package CIF::Msg;
-use base 'CIF::_Msg';
+#use base 'CIF::_Msg';
 
 use 5.008008;
 use strict;
