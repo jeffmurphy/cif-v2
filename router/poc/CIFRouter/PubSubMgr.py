@@ -3,7 +3,7 @@ import datetime
 import threading
 
 sys.path.append('/opt/cif/lib/cif-protocol/pb-python/gen-py')
-import msg_pb2
+import submission_pb2
 import control_pb2
 import cifsupport
 
@@ -71,22 +71,17 @@ class PubSubMgr(object):
                 relaycount = relaycount + 1
                 m = self.xsub.recv()
                 
-                _m = msg_pb2.MessageType()
+                _m = submission_pb2.MessageType()
                 _m.ParseFromString(m)
                 
-                if _m.type == msg_pb2.MessageType.QUERY:
-                    self.stats_tracker.setrelayed(1, 'QUERY')
-                elif _m.type == msg_pb2.MessageType.REPLY:
-                    self.stats_tracker.setrelayed(1, 'REPLY')
-                elif _m.type == msg_pb2.MessageType.SUBMISSION:
-                    self.stats_tracker.setrelayed(1, 'SUBMISSION')
-                    
-                    for bmt in _m.submissionRequest:
-                        self.stats_tracker.setrelayed(1, bmt.baseObjectType)
+                for bmt in _m.submissionRequest:
+                    self.stats_tracker.setrelayed(1, bmt.baseObjectType)
                         
         
-                self.L("total:%d got:%d bytes" % (relaycount, len(m))) 
+                self.L("total:%d got:%d bytes" % (relaycount, len(m)))
+                
                 #print "[myrelay] got msg on our xsub socket: " , m
+                
                 self.xpub.send(m)
     
             except Exception as e:

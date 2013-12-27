@@ -20,7 +20,7 @@ import re
 # default PREFIX = /usr/local
 sys.path.append('/opt/cif/lib/cif-protocol/pb-python/gen-py')
 
-import msg_pb2
+import submission_pb2
 import feed_pb2
 import control_pb2
 import RFC5070_IODEF_v1_pb2
@@ -391,26 +391,13 @@ try:
         purger = Purger.Purger(connectionPool, num_servers, thread_tracker, True)
         
         while True:
-            msg = msg_pb2.MessageType()
+            msg = submission_pb2.MessageType()
             msg.ParseFromString(subscriber.recv())
-    
-            
+
             if apikeys.is_valid(msg.apikey):
-                if msg.type == msg_pb2.MessageType.SUBMISSION and len(msg.submissionRequest) > 0:
-                    #print "Got a SUBMISSION. Saving."
-                    for i in range(0, len(msg.submissionRequest)):
-                        writeToDb(cif_objs, cif_idl, msg.submissionRequest[i], salt.next())
-                
-                # ignore QUERY logic at present, see controlmessagehandler, above, instead
-                # we arent processing QUERYs recvd via this PUB/SUB connection 
-                elif msg.type == msg_pb2.MessageType.QUERY and len(msg.queryRequest) > 0:
-                    print "Got an unexected QUERY on PUB/SUB interface"
-                else:
-                    print "Wrong or empty message recvd on subscriber port. Expected submission or query (" + \
-                        str(msg_pb2.MessageType.SUBMISSION) + " or " +                               \
-                        str(msg_pb2.MessageType.QUERY) + ")  got " +                                 \
-                        str(msg.type) + " number of parts (should be > 0) SR:" +                     \
-                        str(len(msg.submissionRequest)) + " / QR:" + str(len(msg.queryRequest)) 
+                for i in range(0, len(msg.submissionRequest)):
+                    writeToDb(cif_objs, cif_idl, msg.submissionRequest[i], salt.next())
+
             else:
                 print "message has an invalid apikey"
                 
