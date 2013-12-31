@@ -177,7 +177,7 @@ sub submit {
     my $ret = $self->send($msg);
     
     return('ERROR: server failure, contact system administrator', -1) unless($ret);
-    return('ERROR: ' . $ret, -1) if ($ret != 'SUCCESS');
+    return('ERROR: ' . $ret, -1) if ($ret ne 'SUCCESS');
     
     # on success, pass the number of successfully submitted objects back to the
     # caller

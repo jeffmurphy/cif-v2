@@ -244,7 +244,7 @@ sub send {
     return unless(defined($msg));
 
     my $rv = zmq_sendmsg($self->{publisher}, 
-    				     $self->encode());
+    				     $msg->encode());
 
     confess("(Foundation) failed to zmq_sendmsg the message $!") if $rv == -1;
     

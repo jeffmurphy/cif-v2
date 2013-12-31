@@ -2,6 +2,7 @@ package CIF::Msg::Support;
 use CIF::Msg;
 use CIF::Msg::Feed;
 use CIF::Msg::Control;
+use CIF::Msg::Submission;
 
 use 5.008008;
 use strict;

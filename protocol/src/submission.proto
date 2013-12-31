@@ -9,11 +9,11 @@ message SubmissionType {
         optional bytes data = 2;
     }
 	
-	// the version field SHALL always be the first field in the message "= 1"
+    // the version field SHALL always be the first field in the message "= 1"
     optional double version                      = 1 [default = 20131225];
     optional string apikey                       = 2;
-    optional Krenk.KrenkType   disclosure        = 3;
-    repeated SubmissionRequest submissionRequest = 4;
+    repeated SubmissionRequest submissionRequest = 3;
+    optional Krenk.KrenkType   disclosure        = 4;
 }
 
 

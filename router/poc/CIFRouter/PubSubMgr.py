@@ -71,7 +71,7 @@ class PubSubMgr(object):
                 relaycount = relaycount + 1
                 m = self.xsub.recv()
                 
-                _m = submission_pb2.MessageType()
+                _m = submission_pb2.SubmissionType()
                 _m.ParseFromString(m)
                 
                 for bmt in _m.submissionRequest:

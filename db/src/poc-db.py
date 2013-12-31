@@ -391,7 +391,7 @@ try:
         purger = Purger.Purger(connectionPool, num_servers, thread_tracker, True)
         
         while True:
-            msg = submission_pb2.MessageType()
+            msg = submission_pb2.SubmissionType()
             msg.ParseFromString(subscriber.recv())
 
             if apikeys.is_valid(msg.apikey):

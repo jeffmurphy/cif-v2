@@ -611,8 +611,9 @@ sub process {
         debug('polling...') if($::debug > 5);
         my @fired = $poller->poll(1000);
         debug('found msg') if($::debug > 1);
-        
+		        
         for my $pending_event (@fired) {
+
         	if ($pending_event->{socket} == $workers_sum) {
 	            my $msg = $workers_sum->recvmsg()->data();
 	            for($msg){
@@ -635,6 +636,7 @@ sub process {
 	            $ctrl->sendmsg($tosend, 0); 
 	            $ctrl->sendmsg('WRK_DONE', 0);
 	        }
+	        
 	        # waiting for sender
 	        
 	        if ($pending_event->{socket} == $return) {
